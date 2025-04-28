@@ -15,6 +15,33 @@ def normal_distribution(mean, variance):
 def uniform_distribution(a, b):
     return np.random.uniform(a, b)
 
+unit_type = {
+    "tank":1,
+    "anti_tank":2,
+    "apc":3,
+    "artilary":4,
+    "supply":5,
+}
+
+prob_list = {
+    "blue_tank_red_anti_tank" : 0.4,
+    "blue_tank_red_tank" : 0.3,
+    "blue_anti_tank_red_tank" : 0.1,
+
+    "red_tank_blue_anti_tank" : 0.3,
+    "red_tank_blue_tank" : 0.3,
+    "red_anti_tank_blue_tank" : 0.2,
+}
+
+# Hit probabilities
+blue_tank_red_anti_tank = 0.4
+blue_tank_red_tank = 0.3
+blue_anti_tank_red_tank = 0.1
+
+red_tank_blue_anti_tank = 0.3
+red_tank_blue_tank = 0.3
+red_anti_tank_blue_tank = 0.2
+
 
 # Initialize troop status and targeting
 class Troop:
@@ -45,7 +72,7 @@ class Troop:
             Troop.counter["red_anti"] += 1
         return label
 
-    def assign_target(self, enemy_list):
+    def assign_target(self, current_time, enemy_list):
         if enemy_list:
             self.target = np.random.choice(enemy_list)
             if self.type == "anti_tank":
@@ -64,7 +91,7 @@ class Troop:
             self.next_fire_time = float('inf')
             print("----------------------should not happen----------------------")
 
-    def fire(self, enemy_list):
+    def fire(self, current_time, enemy_list, prob_list):
         if not self.alive:
             return
 
@@ -96,21 +123,36 @@ class Troop:
                 self.target.alive = False
                 result = "hit"
 
-        history.append(
-            [
-                round(current_time, 2),
-                self.team,
-                self.type,
-                self.id,
-                self.target.id,
-                round(self.next_fire_time, 2),
-                result,
-            ]
-        )
+        # history.append(
+        #     [
+        #         round(current_time, 2),
+        #         self.team,
+        #         self.type,
+        #         self.id,
+        #         self.target.id,
+        #         round(self.next_fire_time, 2),
+        #         result,
+        #     ]
+        # )
         if result == "hit":
             self.assign_target(enemy_list)
         else:
             self.next_fire_time = current_time + self.fire_time_func()
+
+
+def assign_target_all(troop_list):
+    for troop in troop_list:
+        enemies = [
+            e for e in troop_list if troop.team != e.team and e.alive
+        ]
+        troop.assign_target(enemies)
+
+def terminate(troop_list):
+    blue_tanks = [t for t in troop_list if t.type == "tank" and t.team == "blue"]
+    red_tanks = [t for t in troop_list if t.type == "tank" and t.team == "red"]
+
+    if blue_tanks and red_tanks:
+        return False
 
 
 def main():
@@ -120,14 +162,14 @@ def main():
     red_tanks = 30
     red_anti_tanks = 14
 
-    # Hit probabilities
-    blue_tank_red_anti_tank = 0.4
-    blue_tank_red_tank = 0.3
-    blue_anti_tank_red_tank = 0.1
+    # # Hit probabilities
+    # blue_tank_red_anti_tank = 0.4
+    # blue_tank_red_tank = 0.3
+    # blue_anti_tank_red_tank = 0.1
 
-    red_tank_blue_anti_tank = 0.3
-    red_tank_blue_tank = 0.3
-    red_anti_tank_blue_tank = 0.2
+    # red_tank_blue_anti_tank = 0.3
+    # red_tank_blue_tank = 0.3
+    # red_anti_tank_blue_tank = 0.2
 
     # Mode values and configuration for distributions
     M_blue_tank = 4
@@ -193,5 +235,53 @@ def main():
     all_forces = blue_forces + red_forces
     current_time = 0
 
+    assign_target_all(all_forces)
+    while any(f.alive for f in blue_forces) and any(f.alive for f in red_forces):
+        # print(current_time)
+        # row = [round(current_time, 2)]
+        # for troop in all_forces:
+        #     row.extend(
+        #         [
+        #             troop.alive,
+        #             troop.target.id if troop.target else None,
+        #             round(troop.next_fire_time, 2) if troop.alive else None,
+        #         ]
+        #     )
+        # troop_status.append(row)
+
+        # End if only anti-tanks remain
+        if all(t.type == "anti_tank" for t in blue_forces if t.alive) and all(
+            t.type == "anti_tank" for t in red_forces if t.alive
+        ):
+            break
+
+        living_forces = [f for f in all_forces if f.alive]
+        next_time = min(f.next_fire_time for f in living_forces)
+        current_time = next_time
+
+        for troop in living_forces:
+            if troop.next_fire_time <= current_time:
+                enemies = [
+                    e
+                    for e in (red_forces if troop.team == "blue" else blue_forces)
+                    if e.alive
+                ]
+                troop.fire(enemies)
+
+        # time_history["time"].append(current_time)
+        # time_history["blue_tanks"].append(
+        #     sum(1 for t in blue_forces if t.alive and t.type == "tank")
+        # )
+        # time_history["blue_anti_tanks"].append(
+        #     sum(1 for t in blue_forces if t.alive and t.type == "anti_tank")
+        # )
+        # time_history["red_tanks"].append(
+        #     sum(1 for t in red_forces if t.alive and t.type == "tank")
+        # )
+        # time_history["red_anti_tanks"].append(
+        #     sum(1 for t in red_forces if t.alive and t.type == "anti_tank")
+        # )
+
 if __name__ == "__main__":
+    total_time = 2880.0
     main()
