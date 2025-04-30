@@ -15,6 +15,9 @@ def normal_distribution(mean, variance):
 def uniform_distribution(a, b):
     return np.random.uniform(a, b)
 
+def constant_distribution(value):
+    return value
+
 unit_type = {
     "tank":1,
     "anti_tank":2,
@@ -42,25 +45,82 @@ red_tank_blue_anti_tank = 0.3
 red_tank_blue_tank = 0.3
 red_anti_tank_blue_tank = 0.2
 
-class History:
+class Coord: # Coordinate class to store x, y, z coordinates
+    def __init__(self, x,y,z):
+        self.x=x
+        self.y=y
+        self.z=z
+
+class Map: # Map class to store map information
+    def __init__(self, width, height):
+        self.width = width
+        self.height = height
+        self.grid = np.zeros((width, height))
+
+    # def add_obstacle(self, x, y):
+    #     if 0 <= x < self.width and 0 <= y < self.height:
+    #         self.grid[x][y] = 1  # Mark as obstacle
+
+    # def is_obstacle(self, x, y):
+    #     return self.grid[x][y] == 1
+    
+    def get_terrain(self, x, y): # Get terrain type at (x, y)
+        if 0 <= x < self.width and 0 <= y < self.height:
+            return self.grid[x][y]
+        return None
+
+class History: # Store history of troop actions and troop status
     def __init__(self, time):
         self.current_time = time
-        self.data=[]
+        self.battle_log=[]
+        self.status_data = {
+            "time": [], 
+            }
 
-    def update_time(self, time):
+    def update_time(self, time): # update current time
+        if time > self.current_time:
+            self.current_time = time
+        else:
+            raise ValueError("Time cannot be set to a past value.")
         self.current_time = time
 
-    def add_to_history(self,team,type_,shooter,target,fire_time,result):
-        self.data.append([self.current_time,team,type_,shooter,target,fire_time,result])
+    def add_to_battle_log(self,team,type_,shooter,target,fire_time,result): # add to battle log
+        self.battle_log.append([self.current_time,team,type_,shooter,target,fire_time,result])
     
-    def get_history(self):
-        return self.data
+    def add_to_status_data(self,team,type_,shooter,target,fire_time,result): # add to status data
+        self.status_data["time"].append(self.current_time)
+        if team not in self.status_data:
+            self.status_data[team] = {}
+        if type_ not in self.status_data[team]:
+            self.status_data[team][type_] = {}
+        if shooter not in self.status_data[team][type_]:
+            self.status_data[team][type_][shooter] = {}
+        if target not in self.status_data[team][type_][shooter]:
+            self.status_data[team][type_][shooter][target] = {}
+        if fire_time not in self.status_data[team][type_][shooter][target]:
+            self.status_data[team][type_][shooter][target][fire_time] = result
 
-# Initialize troop status and targeting
-class Troop:
+    def get_battle_log(self): # return battle log
+        return self.battle_log  
+    
+    def get_status_data(self): # return status data
+        return self.status_data
+
+    def save_battle_log(self, filename): # save battle log to file
+        with open(filename, 'w') as f:
+            for entry in self.battle_log:
+                f.write(','.join(map(str, entry)) + '\n')
+    
+    def save_status_data(self, filename): # save status data to file
+        with open(filename, 'w') as f:
+            for entry in self.status_data:
+                f.write(','.join(map(str, entry)) + '\n')
+
+class Troop: # Troop class to store troop information and actions
+    # Static variables to keep track of troop IDs
     counter = {"blue_tank": 1, "blue_anti": 1, "red_tank": 1, "red_anti": 1}
 
-    def __init__(self, team, type_, fire_time_func, target_delay_func):
+    def __init__(self, team, type_, fire_time_func, target_delay_func, location):
         self.team = team
         self.type = type_
         self.fire_time_func = fire_time_func
@@ -69,6 +129,7 @@ class Troop:
         self.next_fire_time = fire_time_func()
         self.target = None
         self.alive = True
+        self.location = location
 
     def assign_id(self):
         if self.team == "blue" and self.type == "tank":
@@ -253,37 +314,24 @@ def main():
 
     while True:
         history.update_time(current_time)
-        history.add_to_history(
-            "blue",
-            "tank",
-            "shooter",
-            "target",
-            "fire_time",
-            "result"
-        )
+        # history.add_to_history(
+        #     "blue",
+        #     "tank",
+        #     "shooter",
+        #     "target",
+        #     "fire_time",
+        #     "result"
+        # )
+        if terminate(all_forces):
+            break
         
-        # Check if all forces are alive
-        if not any(f.alive for f in all_forces):
-            break
+        current_time +=0.01
+        living_forces = [f for f in all_forces if f.alive]
+        next_battle_time = min(f.next_fire_time for f in living_forces)
 
-        # Check if only anti-tanks remain
-        if all(t.type == "anti_tank" for t in blue_forces if t.alive) and all(
-            t.type == "anti_tank" for t in red_forces if t.alive
-        ):
-            break
-
-        # Check if only tanks remain
-        if all(t.type == "tank" for t in blue_forces if t.alive) and all(
-            t.type == "tank" for t in red_forces if t.alive
-        ):
-            break
-
-        # Check if only one team remains
-        if not any(f.alive for f in blue_forces) or not any(f.alive for f in red_forces):
-            break
+        if current_time == next_battle_time
 
 
-    while any(f.alive for f in blue_forces) and any(f.alive for f in red_forces):
         # print(current_time)
         # row = [round(current_time, 2)]
         # for troop in all_forces:
@@ -296,15 +344,13 @@ def main():
         #     )
         # troop_status.append(row)
 
-        # End if only anti-tanks remain
-        if all(t.type == "anti_tank" for t in blue_forces if t.alive) and all(
-            t.type == "anti_tank" for t in red_forces if t.alive
-        ):
-            break
+        # # End if only anti-tanks remain
+        # if all(t.type == "anti_tank" for t in blue_forces if t.alive) and all(
+        #     t.type == "anti_tank" for t in red_forces if t.alive
+        # ):
+        #     break
 
-        living_forces = [f for f in all_forces if f.alive]
-        next_time = min(f.next_fire_time for f in living_forces)
-        current_time = next_time
+        
 
         for troop in living_forces:
             if troop.next_fire_time <= current_time:
@@ -330,5 +376,5 @@ def main():
         # )
 
 if __name__ == "__main__":
-    total_time = 2880.0
+    max_time = 2880.0
     main()
