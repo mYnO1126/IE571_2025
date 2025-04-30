@@ -42,6 +42,19 @@ red_tank_blue_anti_tank = 0.3
 red_tank_blue_tank = 0.3
 red_anti_tank_blue_tank = 0.2
 
+class History:
+    def __init__(self, time):
+        self.current_time = time
+        self.data=[]
+
+    def update_time(self, time):
+        self.current_time = time
+
+    def add_to_history(self,team,type_,shooter,target,fire_time,result):
+        self.data.append([self.current_time,team,type_,shooter,target,fire_time,result])
+    
+    def get_history(self):
+        return self.data
 
 # Initialize troop status and targeting
 class Troop:
@@ -233,9 +246,43 @@ def main():
     ]
 
     all_forces = blue_forces + red_forces
-    current_time = 0
+    current_time = 0.0
+    history = History(current_time)
 
     assign_target_all(all_forces)
+
+    while True:
+        history.update_time(current_time)
+        history.add_to_history(
+            "blue",
+            "tank",
+            "shooter",
+            "target",
+            "fire_time",
+            "result"
+        )
+        
+        # Check if all forces are alive
+        if not any(f.alive for f in all_forces):
+            break
+
+        # Check if only anti-tanks remain
+        if all(t.type == "anti_tank" for t in blue_forces if t.alive) and all(
+            t.type == "anti_tank" for t in red_forces if t.alive
+        ):
+            break
+
+        # Check if only tanks remain
+        if all(t.type == "tank" for t in blue_forces if t.alive) and all(
+            t.type == "tank" for t in red_forces if t.alive
+        ):
+            break
+
+        # Check if only one team remains
+        if not any(f.alive for f in blue_forces) or not any(f.alive for f in red_forces):
+            break
+
+
     while any(f.alive for f in blue_forces) and any(f.alive for f in red_forces):
         # print(current_time)
         # row = [round(current_time, 2)]
