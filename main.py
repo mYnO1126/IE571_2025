@@ -5,6 +5,8 @@ from enum import Enum
 from collections import namedtuple
 import math
 
+MAX_TIME = 2880.0 # 최대 시뮬레이션 시간 (분 단위)
+TIME_STEP = 0.01 # 시뮬레이션 시간 간격 (분 단위)
 
 # Probability distributions for firing times
 def triangular_distribution(M, C):
@@ -105,23 +107,27 @@ class UnitComposition(Enum):
     )
 
 class UnitSpec:
-    def __init__(self, name, team, unit_type, range_km, ph_func, pk_model):
+    def __init__(self, name, team, unit_type, range_km, ph_func, pk_model, target_delay_func, fire_time_func):
         self.name = name
         self.team = team  # "blue" or "red"
         self.unit_type = unit_type  # UnitType Enum
         self.range_km = range_km
         self.ph_func = ph_func  # A function that returns hit probability
         self.pk_model = pk_model  # Description or function of kill model
+        self.target_delay_func = target_delay_func
+        self.fire_time_func = fire_time_func
 
 
-UNIT_SPECS = {
+UNIT_SPECS = {  #TODO: unit ph_func, pk_model 추가
     "Sho't_Kal": UnitSpec(
         name="Sho't_Kal",
         team="blue",
         unit_type=UnitType.TANK,
         range_km=2.5,
         ph_func=exp_decay(2.5, 0.75, 2.5),
-        pk_model="exp(-r/2.5)"
+        pk_model="exp(-r/2.5)",
+        target_delay_func=lambda: 0,
+        fire_time_func=lambda: 0,
     ),
     "T-55": UnitSpec(
         name="T-55",
@@ -129,7 +135,9 @@ UNIT_SPECS = {
         unit_type=UnitType.TANK,
         range_km=2.0,
         ph_func=exp_decay(2.0, 0.7, 2.0),
-        pk_model="exp(-r/2.0)"
+        pk_model="exp(-r/2.0)",
+        target_delay_func=lambda: 0,
+        fire_time_func=lambda: 0,
     ),
     "T-62": UnitSpec(
         name="T-62",
@@ -137,7 +145,9 @@ UNIT_SPECS = {
         unit_type=UnitType.TANK,
         range_km=2.0,
         ph_func=exp_decay(2.0, 0.68, 2.0),
-        pk_model="exp(-r/2.0)"
+        pk_model="exp(-r/2.0)",
+        target_delay_func=lambda: 0,
+        fire_time_func=lambda: 0,
     ),
     "60mm_Mortar": UnitSpec(
         name="60mm_Mortar",
@@ -145,7 +155,9 @@ UNIT_SPECS = {
         unit_type=UnitType.MORTAR, 
         range_km=2.0,
         ph_func=exp_decay(2.0, 0.6, 2.0),
-        pk_model="exp(-r/2.0)"
+        pk_model="exp(-r/2.0)",
+        target_delay_func=lambda: 0,
+        fire_time_func=lambda: 0,
     ),
     "105mm_Howitzer": UnitSpec(
         name="105mm_Howitzer",
@@ -153,7 +165,9 @@ UNIT_SPECS = {
         unit_type=UnitType.HOWITZER,
         range_km=11.0,
         ph_func=exp_decay(11.0, 0.8, 11.0),
-        pk_model="exp(-r/11.0)"
+        pk_model="exp(-r/11.0)",
+        target_delay_func=lambda: 0,
+        fire_time_func=lambda: 0,
     ),
     "122mm_SPG": UnitSpec(
         name="122mm_SPG",
@@ -161,7 +175,9 @@ UNIT_SPECS = {
         unit_type=UnitType.SPG,
         range_km=15.0,
         ph_func=exp_decay(10.0, 0.75, 10.0),
-        pk_model="exp(-r/10.0)"
+        pk_model="exp(-r/10.0)",
+        target_delay_func=lambda: 0,
+        fire_time_func=lambda: 0,
     ),
     "BM-21_MLRS": UnitSpec(
         name="BM-21_MLRS",
@@ -169,7 +185,9 @@ UNIT_SPECS = {
         unit_type=UnitType.MLRS,
         range_km=20.0,
         ph_func=exp_decay(20.0, 0.85, 20.0),
-        pk_model="exp(-r/20.0)"
+        pk_model="exp(-r/20.0)",
+        target_delay_func=lambda: 0,
+        fire_time_func=lambda: 0,
     ),
     "BGM-71_TOW": UnitSpec(
         name="BGM-71_TOW",
@@ -177,7 +195,9 @@ UNIT_SPECS = {
         unit_type=UnitType.ATGM,
         range_km=3.75,
         ph_func=exp_decay(3.75, 0.9, 3.75),
-        pk_model="exp(-r/3.75)"
+        pk_model="exp(-r/3.75)",
+        target_delay_func=lambda: 0,
+        fire_time_func=lambda: 0,
     ),
     "9M14_Malyutka": UnitSpec(
         name="9M14_Malyutka",
@@ -185,7 +205,9 @@ UNIT_SPECS = {
         unit_type=UnitType.ATGM,
         range_km=3.0,
         ph_func=exp_decay(3.0, 0.85, 3.0),
-        pk_model="exp(-r/3.0)"
+        pk_model="exp(-r/3.0)",
+        target_delay_func=lambda: 0,
+        fire_time_func=lambda: 0,
     ),
     "106mm_M40_Recoilless_Rifle": UnitSpec(
         name="106mm_M40_Recoilless_Rifle",
@@ -193,7 +215,9 @@ UNIT_SPECS = {
         unit_type=UnitType.RECOILLESS,
         range_km=1.2,
         ph_func=exp_decay(1.5, 0.7, 1.5),
-        pk_model="exp(-r/1.5)"
+        pk_model="exp(-r/1.5)",
+        target_delay_func=lambda: 0,
+        fire_time_func=lambda: 0,
     ),
     "107mm_B-11_Recoilless_Rifle": UnitSpec(
         name="107mm_B-11_Recoilless_Rifle",
@@ -201,7 +225,9 @@ UNIT_SPECS = {
         unit_type=UnitType.RECOILLESS,
         range_km=0.6,
         ph_func=exp_decay(1.5, 0.75, 1.5),
-        pk_model="exp(-r/1.5)"
+        pk_model="exp(-r/1.5)",
+        target_delay_func=lambda: 0,
+        fire_time_func=lambda: 0,
     ),
     "M72_LAW": UnitSpec(
         name="M72_LAW",
@@ -209,7 +235,9 @@ UNIT_SPECS = {
         unit_type=UnitType.RPG,
         range_km=0.3,
         ph_func=exp_decay(0.2, 0.8, 0.2),
-        pk_model="exp(-r/0.2)"
+        pk_model="exp(-r/0.2)",
+        target_delay_func=lambda: 0,
+        fire_time_func=lambda: 0,
     ),
     "RPG-7": UnitSpec(
         name="RPG-7",
@@ -217,7 +245,9 @@ UNIT_SPECS = {
         unit_type=UnitType.RPG,
         range_km=0.5,
         ph_func=exp_decay(0.2, 0.75, 0.2),
-        pk_model="exp(-r/0.2)"
+        pk_model="exp(-r/0.2)",
+        target_delay_func=lambda: 0,
+        fire_time_func=lambda: 0,
     ),
     "Blue_Supply_Truck": UnitSpec(
         name="Blue_Supply_Truck",
@@ -225,7 +255,9 @@ UNIT_SPECS = {
         unit_type=UnitType.SUPPLY,
         range_km=0.0,
         ph_func=exp_decay(0.1, 0.6, 0.1),
-        pk_model="exp(-r/0.1)"
+        pk_model="exp(-r/0.1)",
+        target_delay_func=lambda: 0,
+        fire_time_func=lambda: 0,
     ),
     "Red_Supply_Truck": UnitSpec(
         name="Red Supply_Truck",
@@ -233,9 +265,39 @@ UNIT_SPECS = {
         unit_type=UnitType.SUPPLY,
         range_km=0.0,
         ph_func=exp_decay(0.1, 0.6, 0.1),
-        pk_model="exp(-r/0.1)"
+        pk_model="exp(-r/0.1)",
+        target_delay_func=lambda: 0,
+        fire_time_func=lambda: 0,
     ),
 }
+
+
+class TimelineEvent: # Timeline event types
+    def __init__(self, time, time_str, description, t_a, t_f):
+        self.time = time  # Event time
+        self.time_str = time_str  # Event time as string
+        # self.event_type = event_type  # Event type (e.g., "fire", "move")
+        self.description = description
+        self.t_a = t_a  # Time of action
+        self.t_f = t_f  # Time of fire
+
+
+timeline = [
+    TimelineEvent(0, "13:55", "BLUE 전차70대 방어진지 배치 명령", 0.5, 1),
+    TimelineEvent(5, "14:00", "BLUE 모든 소대 방어진지 점검 완료", None, None),
+    TimelineEvent(30, "14:25", "RED(E1) 교량전차·보병 투입 시도", 1, 1),
+    TimelineEvent(60, "14:55", "RED(E1) 실패 후 예비포 지원사격", 0.5, 1),
+    TimelineEvent(125, "15:40", "RED(E2) 모로코 여단 돌격 시작", 2, 1.5),
+    TimelineEvent(130, "15:45", "BLUE Tel Shaeta·Hermonit 방어 강화", 0.5, 1),
+    TimelineEvent(180, "16:35", "RED 중대 E2 후속 기갑 소규모 침투 시도", 1, 1),
+    TimelineEvent(300, "18:15", "BLUE Barak여단 65대 증강 완료 보고", None, None),
+    TimelineEvent(360, "19:15", "야간 준비: BLUE 은폐·탐지·매복 배치", None, None),
+    TimelineEvent(365, "19:20", "RED(E3) 78·82기갑 동시 투입", 1.5, 2),
+    TimelineEvent(425, "20:25", "야간 주요 교전 고착", None, None),
+    TimelineEvent(1440, "07:00(2일)", "RED 추가 E4 예비포·보병투입", 1, 1),
+    TimelineEvent(2880, "13:55(4일)", "종료: 전멸 or 시간만료", None, None),
+]
+
 
 
 class Coord: # Coordinate class to store x, y, z coordinates
@@ -244,12 +306,11 @@ class Coord: # Coordinate class to store x, y, z coordinates
         self.y=y
         self.z=z
 
-    def next_coord(self, velocity, time):
+    def next_coord(self, velocity):
         # Update the coordinates based on velocity and time
-        self.x += velocity.x * time
-        self.y += velocity.y * time
-        self.z += velocity.z * time
-
+        self.x += velocity.x * TIME_STEP
+        self.y += velocity.y * TIME_STEP
+        self.z += velocity.z * TIME_STEP
 
 class Velocity: # Velocity class to store velocity information
     def __init__(self, x=0, y=0, z=0):
@@ -290,21 +351,22 @@ class History: # Store history of troop actions and troop status
             raise ValueError("Time cannot be set to a past value.")
         self.current_time = time
 
+    def init_status_data(self, troop_list): # initialize status data
+        for troop in troop_list:
+            if f"{troop.id}_status" not in self.status_data:
+                self.status_data[f"{troop.id}_status"] = {}
+                self.status_data[f"{troop.id}_target"] = {}
+                self.status_data[f"{troop.id}_fire_time"] = {}
+    
     def add_to_battle_log(self,team,type_,shooter,target,fire_time,result): # add to battle log
         self.battle_log.append([self.current_time,team,type_,shooter,target,fire_time,result])
     
-    def add_to_status_data(self,team,type_,shooter,target,fire_time,result): # add to status data
+    def add_to_status_data(self, troop_list): # add to status data
         self.status_data["time"].append(self.current_time)
-        if team not in self.status_data:
-            self.status_data[team] = {}
-        if type_ not in self.status_data[team]:
-            self.status_data[team][type_] = {}
-        if shooter not in self.status_data[team][type_]:
-            self.status_data[team][type_][shooter] = {}
-        if target not in self.status_data[team][type_][shooter]:
-            self.status_data[team][type_][shooter][target] = {}
-        if fire_time not in self.status_data[team][type_][shooter][target]:
-            self.status_data[team][type_][shooter][target][fire_time] = result
+        for troop in troop_list:
+            self.status_data[f"{troop.id}_status"].append(troop.status.value)
+            self.status_data[f"{troop.id}_target"].append(troop.target.id if troop.target else None)
+            self.status_data[f"{troop.id}_fire_time"].append(troop.next_fire_time if troop.alive else None)
 
     def get_battle_log(self): # return battle log
         return self.battle_log  
@@ -312,21 +374,22 @@ class History: # Store history of troop actions and troop status
     def get_status_data(self): # return status data
         return self.status_data
 
-    def save_battle_log(self, filename): # save battle log to file
-        with open(filename, 'w') as f:
-            for entry in self.battle_log:
-                f.write(','.join(map(str, entry)) + '\n')
+    def save_battle_log(self, filename="battle_log.csv"): # save battle log to file
+        columns = ["time", "team", "type", "shooter", "target", "fire_time", "result"]
+        df = pd.DataFrame(self.battle_log, columns=columns)
+        df.to_csv(filename, index=False)
+        print("Battle log saved to battle_log.csv")
     
-    def save_status_data(self, filename): # save status data to file
-        with open(filename, 'w') as f:
-            for entry in self.status_data:
-                f.write(','.join(map(str, entry)) + '\n')
+    def save_status_data(self, filename="status_data.csv"): # save status data to file
+        df = pd.DataFrame(self.status_data)
+        df.to_csv(filename, index=False)
+        print("Status data saved to status_data.csv")
 
 class Troop: # Troop class to store troop information and actions
     # Static variables to keep track of troop IDs
     counter = {}
 
-    def __init__(self, unit_name, fire_time_func, target_delay_func, coord):
+    def __init__(self, unit_name, coord=Coord()):
         spec = UNIT_SPECS[unit_name]
         self.spec = spec
         self.team = spec.team
@@ -335,16 +398,18 @@ class Troop: # Troop class to store troop information and actions
         self.range_km = spec.range_km
         self.ph_func = spec.ph_func
         self.pk_model = spec.pk_model
+        self.target_delay_func = spec.target_delay_func
+        self.fire_time_func = spec.fire_time_func
 
-        self.fire_time_func = fire_time_func
-        self.target_delay_func = target_delay_func
         self.id = self.assign_id()
-        self.next_fire_time = fire_time_func()
+        self.next_fire_time = 0.0  # Initial fire time
         self.target = None
         self.alive = True
         self.coord = coord # Coordinate object to store (x, y, z) coordinates
         self.velocity = Velocity()  # Placeholder for velocity (x, y, z)
         self.status = UnitStatus.ALIVE  # Placeholder for unit status
+        self.ammo = 100     # ammo level (0-100%)
+        self.supply = 100 # supply level (0-100%)
 
     def assign_id(self):
         key = f"{self.team}_{self.type.value}"
@@ -354,8 +419,9 @@ class Troop: # Troop class to store troop information and actions
         Troop.counter[key] += 1
         return label
     
-    def update_coord(self, new_coord): # Update coordinates
-        self.coord = new_coord
+    def update_coord(self): # Update coordinates
+        self.coord = self.coord.next_coord(self.velocity)
+
     def update_velocity(self, new_velocity): # Update velocity
         self.velocity = new_velocity
 
@@ -367,18 +433,18 @@ class Troop: # Troop class to store troop information and actions
                 if non_anti_tanks:
                     self.target = np.random.choice(non_anti_tanks)
                     self.next_fire_time = (
-                        current_time + self.target_delay_func()
+                        current_time + self.t_a()
                     )
                 else:
                     self.next_fire_time = float('inf')  # Set fire time to infinity (never fire)
             elif self.type == "tank":
-                self.next_fire_time = current_time + self.target_delay_func()
+                self.next_fire_time = current_time + self.t_a()
         else:
             self.target = None
             self.next_fire_time = float('inf')
             print("----------------------should not happen----------------------")
 
-    def fire(self, current_time, enemy_list, prob_list):
+    def fire(self, current_time, enemy_list): #TODO: Implement firing logic
         if not self.alive:
             return
 
@@ -424,7 +490,7 @@ class Troop: # Troop class to store troop information and actions
         if result == "hit":
             self.assign_target(enemy_list)
         else:
-            self.next_fire_time = current_time + self.fire_time_func()
+            self.next_fire_time = current_time + self.t_f()
 
 
 def assign_target_all(troop_list): #TODO: Implement target assignment logic for all troops
@@ -434,30 +500,28 @@ def assign_target_all(troop_list): #TODO: Implement target assignment logic for 
         ]
         troop.assign_target(enemies)
 
-def terminate(troop_list):
-    blue_tanks = [t for t in troop_list if t.type == "tank" and t.team == "blue"]
-    red_tanks = [t for t in troop_list if t.type == "tank" and t.team == "red"]
+def terminate(troop_list, current_time):
+    # Check if all troops are dead or if the time limit is reached
+    if current_time >= MAX_TIME:
+        return True
 
-    if blue_tanks and red_tanks:
-        return False
+    for troop in troop_list:
+        if troop.type==UnitType.TANK and troop.alive:
+            return False
+        if troop.type==UnitType.APC and troop.alive:
+            return False
+    return True
 
-def generate_troop_list(troop_list, unit_name, fire_time_func, target_delay_func, num_units):
+def generate_troop_list(troop_list, unit_name, num_units):
     for _ in range(num_units):
         troop = Troop(
             unit_name=unit_name,
-            fire_time_func=lambda: fire_time_func,
-            target_delay_func=lambda: target_delay_func,
             coord=Coord()
         )
         troop_list.append(troop)
 
 def generate_all_troops():
     troop_list = []
-
-    # 기본 함수 예시 (나중에 유닛별로 다르게 설정 가능)
-    default_fire_time_func = lambda: 0  # 예: 최초 발사까지 시간
-    default_target_delay_func = lambda: 0  # 예: 목표 식별 시간
-
     for category in UnitComposition:
         unit_group = category.value
 
@@ -466,8 +530,6 @@ def generate_all_troops():
             generate_troop_list(
                 troop_list,
                 unit_name=unit_name,
-                fire_time_func=default_fire_time_func(),
-                target_delay_func=default_target_delay_func(),
                 num_units=count
             )
 
@@ -476,134 +538,53 @@ def generate_all_troops():
             generate_troop_list(
                 troop_list,
                 unit_name=unit_name,
-                fire_time_func=default_fire_time_func(),
-                target_delay_func=default_target_delay_func(),
                 num_units=count
             )
 
     return troop_list
 
+def update_troop_location(troop_list, map): #TODO: Implement troop out of bounds check logic
+    for troop in troop_list:
+        if troop.alive:
+            # Update the troop's coordinates based on its velocity and time
+            troop.update_coord()
+            # Check if the troop is within the map boundaries
+            if not (0 <= troop.coord.x < map.width and 0 <= troop.coord.y < map.height):
+                troop.alive = False  # Mark as dead if out of bounds
 
 def main():
+    # Simulation parameters
+    current_time = 0.0
+    history = History(current_time=current_time)
+    battle_map = Map(100, 100)  # Create a map of size 100x100
 
     troop_list = generate_all_troops()
-
-
-
-    troop_status = []
-    time_history = {
-        "time": [],
-        "blue_tanks": [],
-        "blue_anti_tanks": [],
-        "red_tanks": [],
-        "red_anti_tanks": [],
-    }
-
-    # Create initial forces
-    blue_forces = [
-        Troop(
-            "blue",
-            "tank",
-            lambda: triangular_distribution(M_blue_tank, C_blue_tank),
-            lambda: uniform_distribution(a_blue_tank, b_blue_tank),
-        )
-        for _ in range(blue_tanks)
-    ] + [
-        Troop(
-            "blue",
-            "anti_tank",
-            lambda: normal_distribution(mean_blue_anti_tank, stddev_blue_anti_tank),
-            lambda: normal_distribution(mean_blue_anti_tank, stddev_blue_anti_tank),
-        )
-        for _ in range(blue_anti_tanks)
-    ]
-    red_forces = [
-        Troop(
-            "red",
-            "tank",
-            lambda: triangular_distribution(M_red_tank, C_red_tank),
-            lambda: uniform_distribution(a_red_tank, b_red_tank),
-        )
-        for _ in range(red_tanks)
-    ] + [
-        Troop(
-            "red",
-            "anti_tank",
-            lambda: normal_distribution(mean_red_anti_tank, stddev_red_anti_tank),
-            lambda: normal_distribution(mean_red_anti_tank, stddev_red_anti_tank),
-        )
-        for _ in range(red_anti_tanks)
-    ]
-
-    all_forces = blue_forces + red_forces
-    current_time = 0.0
-    history = History(current_time)
-
-    assign_target_all(all_forces)
+    assign_target_all(troop_list)
+    history.init_status_data(troop_list)
 
     while True:
         history.update_time(current_time)
-        # history.add_to_history(
-        #     "blue",
-        #     "tank",
-        #     "shooter",
-        #     "target",
-        #     "fire_time",
-        #     "result"
-        # )
-        if terminate(all_forces):
+        history.add_to_status_data(troop_list)
+
+        if terminate(troop_list=troop_list, current_time=current_time):
+            history.save_battle_log()
+            history.save_status_data()
+            print("Simulation terminated.")
             break
         
-        current_time +=0.01
-        living_forces = [f for f in all_forces if f.alive]
-        next_battle_time = min(f.next_fire_time for f in living_forces)
+        current_time +=TIME_STEP
+        living_troops = [f for f in troop_list if f.alive]
+        update_troop_location(living_troops, map=battle_map)
+        next_battle_time = min(f.next_fire_time for f in living_troops)
 
-        if current_time == next_battle_time
+        if current_time == next_battle_time:
+            for troop in living_troops:
+                if troop.next_fire_time <= current_time:
+                    enemies = [
+                        e for e in troop_list if troop.team != e.team and e.alive
+                    ]
+                    troop.fire(current_time, enemies)
 
-
-        # print(current_time)
-        # row = [round(current_time, 2)]
-        # for troop in all_forces:
-        #     row.extend(
-        #         [
-        #             troop.alive,
-        #             troop.target.id if troop.target else None,
-        #             round(troop.next_fire_time, 2) if troop.alive else None,
-        #         ]
-        #     )
-        # troop_status.append(row)
-
-        # # End if only anti-tanks remain
-        # if all(t.type == "anti_tank" for t in blue_forces if t.alive) and all(
-        #     t.type == "anti_tank" for t in red_forces if t.alive
-        # ):
-        #     break
-
-        
-
-        for troop in living_forces:
-            if troop.next_fire_time <= current_time:
-                enemies = [
-                    e
-                    for e in (red_forces if troop.team == "blue" else blue_forces)
-                    if e.alive
-                ]
-                troop.fire(enemies)
-
-        # time_history["time"].append(current_time)
-        # time_history["blue_tanks"].append(
-        #     sum(1 for t in blue_forces if t.alive and t.type == "tank")
-        # )
-        # time_history["blue_anti_tanks"].append(
-        #     sum(1 for t in blue_forces if t.alive and t.type == "anti_tank")
-        # )
-        # time_history["red_tanks"].append(
-        #     sum(1 for t in red_forces if t.alive and t.type == "tank")
-        # )
-        # time_history["red_anti_tanks"].append(
-        #     sum(1 for t in red_forces if t.alive and t.type == "anti_tank")
-        # )
 
 if __name__ == "__main__":
-    max_time = 2880.0
     main()
