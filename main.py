@@ -77,6 +77,19 @@ class UnitAction(Enum):
     SUPPLY = "supply" # 보급
     REPAIR = "repair" # 수리
 
+class hitState(Enum):
+    HIT = "hit" # 명중
+    MISS = "miss" # 빗나감
+    DESTROYED = "destroyed" # 파괴됨
+    DAMAGED = "damaged" # 손상됨
+    OUT_OF_AMMO = "out_of_ammo" # 탄약 없음
+    OUT_OF_RANGE = "out_of_range" # 사거리 초과
+    MOVING = "moving" # 이동중
+    STATIONARY = "stationary" # 정지중
+    RELOADING = "reloading" # 재장전중
+    SPOTTED = "spotted" # 발견됨
+    UNSPOTTED = "unspotted" # 발견되지 않음
+
 # 유닛 세부 정보를 담을 구조체
 UnitCategory = namedtuple("UnitCategory", ["blue", "red"])
 
@@ -107,25 +120,25 @@ class UnitComposition(Enum):
     )
 
 class UnitSpec:
-    def __init__(self, name, team, unit_type, range_km, ph_func, pk_model, target_delay_func, fire_time_func):
+    def __init__(self, name, team, unit_type, range_km, ph_func, pk_func, target_delay_func, fire_time_func):
         self.name = name
         self.team = team  # "blue" or "red"
         self.unit_type = unit_type  # UnitType Enum
         self.range_km = range_km
         self.ph_func = ph_func  # A function that returns hit probability
-        self.pk_model = pk_model  # Description or function of kill model
+        self.pk_func = pk_func  # Description or function of kill model
         self.target_delay_func = target_delay_func
         self.fire_time_func = fire_time_func
 
 
-UNIT_SPECS = {  #TODO: unit ph_func, pk_model 추가
+UNIT_SPECS = {  #TODO: unit ph_func, pk_func 추가
     "Sho't_Kal": UnitSpec(
         name="Sho't_Kal",
         team="blue",
         unit_type=UnitType.TANK,
         range_km=2.5,
         ph_func=exp_decay(2.5, 0.75, 2.5),
-        pk_model="exp(-r/2.5)",
+        pk_func="exp(-r/2.5)",
         target_delay_func=lambda: 0,
         fire_time_func=lambda: 0,
     ),
@@ -135,7 +148,7 @@ UNIT_SPECS = {  #TODO: unit ph_func, pk_model 추가
         unit_type=UnitType.TANK,
         range_km=2.0,
         ph_func=exp_decay(2.0, 0.7, 2.0),
-        pk_model="exp(-r/2.0)",
+        pk_func="exp(-r/2.0)",
         target_delay_func=lambda: 0,
         fire_time_func=lambda: 0,
     ),
@@ -145,7 +158,7 @@ UNIT_SPECS = {  #TODO: unit ph_func, pk_model 추가
         unit_type=UnitType.TANK,
         range_km=2.0,
         ph_func=exp_decay(2.0, 0.68, 2.0),
-        pk_model="exp(-r/2.0)",
+        pk_func="exp(-r/2.0)",
         target_delay_func=lambda: 0,
         fire_time_func=lambda: 0,
     ),
@@ -155,7 +168,7 @@ UNIT_SPECS = {  #TODO: unit ph_func, pk_model 추가
         unit_type=UnitType.MORTAR, 
         range_km=2.0,
         ph_func=exp_decay(2.0, 0.6, 2.0),
-        pk_model="exp(-r/2.0)",
+        pk_func="exp(-r/2.0)",
         target_delay_func=lambda: 0,
         fire_time_func=lambda: 0,
     ),
@@ -165,7 +178,7 @@ UNIT_SPECS = {  #TODO: unit ph_func, pk_model 추가
         unit_type=UnitType.HOWITZER,
         range_km=11.0,
         ph_func=exp_decay(11.0, 0.8, 11.0),
-        pk_model="exp(-r/11.0)",
+        pk_func="exp(-r/11.0)",
         target_delay_func=lambda: 0,
         fire_time_func=lambda: 0,
     ),
@@ -175,7 +188,7 @@ UNIT_SPECS = {  #TODO: unit ph_func, pk_model 추가
         unit_type=UnitType.SPG,
         range_km=15.0,
         ph_func=exp_decay(10.0, 0.75, 10.0),
-        pk_model="exp(-r/10.0)",
+        pk_func="exp(-r/10.0)",
         target_delay_func=lambda: 0,
         fire_time_func=lambda: 0,
     ),
@@ -185,7 +198,7 @@ UNIT_SPECS = {  #TODO: unit ph_func, pk_model 추가
         unit_type=UnitType.MLRS,
         range_km=20.0,
         ph_func=exp_decay(20.0, 0.85, 20.0),
-        pk_model="exp(-r/20.0)",
+        pk_func="exp(-r/20.0)",
         target_delay_func=lambda: 0,
         fire_time_func=lambda: 0,
     ),
@@ -195,7 +208,7 @@ UNIT_SPECS = {  #TODO: unit ph_func, pk_model 추가
         unit_type=UnitType.ATGM,
         range_km=3.75,
         ph_func=exp_decay(3.75, 0.9, 3.75),
-        pk_model="exp(-r/3.75)",
+        pk_func="exp(-r/3.75)",
         target_delay_func=lambda: 0,
         fire_time_func=lambda: 0,
     ),
@@ -205,7 +218,7 @@ UNIT_SPECS = {  #TODO: unit ph_func, pk_model 추가
         unit_type=UnitType.ATGM,
         range_km=3.0,
         ph_func=exp_decay(3.0, 0.85, 3.0),
-        pk_model="exp(-r/3.0)",
+        pk_func="exp(-r/3.0)",
         target_delay_func=lambda: 0,
         fire_time_func=lambda: 0,
     ),
@@ -215,7 +228,7 @@ UNIT_SPECS = {  #TODO: unit ph_func, pk_model 추가
         unit_type=UnitType.RECOILLESS,
         range_km=1.2,
         ph_func=exp_decay(1.5, 0.7, 1.5),
-        pk_model="exp(-r/1.5)",
+        pk_func="exp(-r/1.5)",
         target_delay_func=lambda: 0,
         fire_time_func=lambda: 0,
     ),
@@ -225,7 +238,7 @@ UNIT_SPECS = {  #TODO: unit ph_func, pk_model 추가
         unit_type=UnitType.RECOILLESS,
         range_km=0.6,
         ph_func=exp_decay(1.5, 0.75, 1.5),
-        pk_model="exp(-r/1.5)",
+        pk_func="exp(-r/1.5)",
         target_delay_func=lambda: 0,
         fire_time_func=lambda: 0,
     ),
@@ -235,7 +248,7 @@ UNIT_SPECS = {  #TODO: unit ph_func, pk_model 추가
         unit_type=UnitType.RPG,
         range_km=0.3,
         ph_func=exp_decay(0.2, 0.8, 0.2),
-        pk_model="exp(-r/0.2)",
+        pk_func="exp(-r/0.2)",
         target_delay_func=lambda: 0,
         fire_time_func=lambda: 0,
     ),
@@ -245,7 +258,7 @@ UNIT_SPECS = {  #TODO: unit ph_func, pk_model 추가
         unit_type=UnitType.RPG,
         range_km=0.5,
         ph_func=exp_decay(0.2, 0.75, 0.2),
-        pk_model="exp(-r/0.2)",
+        pk_func="exp(-r/0.2)",
         target_delay_func=lambda: 0,
         fire_time_func=lambda: 0,
     ),
@@ -255,7 +268,7 @@ UNIT_SPECS = {  #TODO: unit ph_func, pk_model 추가
         unit_type=UnitType.SUPPLY,
         range_km=0.0,
         ph_func=exp_decay(0.1, 0.6, 0.1),
-        pk_model="exp(-r/0.1)",
+        pk_func="exp(-r/0.1)",
         target_delay_func=lambda: 0,
         fire_time_func=lambda: 0,
     ),
@@ -265,7 +278,7 @@ UNIT_SPECS = {  #TODO: unit ph_func, pk_model 추가
         unit_type=UnitType.SUPPLY,
         range_km=0.0,
         ph_func=exp_decay(0.1, 0.6, 0.1),
-        pk_model="exp(-r/0.1)",
+        pk_func="exp(-r/0.1)",
         target_delay_func=lambda: 0,
         fire_time_func=lambda: 0,
     ),
@@ -397,7 +410,7 @@ class Troop: # Troop class to store troop information and actions
         self.name = spec.name
         self.range_km = spec.range_km
         self.ph_func = spec.ph_func
-        self.pk_model = spec.pk_model
+        self.pk_func = spec.pk_func
         self.target_delay_func = spec.target_delay_func
         self.fire_time_func = spec.fire_time_func
 
@@ -425,6 +438,13 @@ class Troop: # Troop class to store troop information and actions
     def update_velocity(self, new_velocity): # Update velocity
         self.velocity = new_velocity
 
+    def get_distance(self, other_troop): # Calculate distance to another troop
+        return math.sqrt(
+            (self.coord.x - other_troop.coord.x) ** 2 +
+            (self.coord.y - other_troop.coord.y) ** 2 +
+            (self.coord.z - other_troop.coord.z) ** 2
+        )
+    
     def assign_target(self, current_time, enemy_list): #TODO: Implement target assignment logic
         if enemy_list:
             self.target = np.random.choice(enemy_list)
@@ -452,7 +472,43 @@ class Troop: # Troop class to store troop information and actions
             self.assign_target(enemy_list)
             return
 
-        result = "miss"
+        result = hitState.MISS
+        rand_var = np.random.rand()
+        ph = self.ph_func(self.get_distance(self.target))
+        pk = self.pk_func(self.get_distance(self.target))
+
+        # if self.type == "tank":
+        #     pk_func = self.pk_func
+
+        # elif self.type == "mortar":
+        #     pk_func = self.pk_func
+
+        # elif self.type == "howitzer":
+        #     pk_func = self.pk_func
+
+        # elif self.type == "spg":
+        #     pk_func = self.pk_func
+
+        # elif self.type == "mlrs":
+        #     pk_func = self.pk_func
+
+        # elif self.type == "atgm":
+        #     pk_func = self.pk_func
+
+        # elif self.type == "rpg":
+        #     pk_func = self.pk_func
+
+        # elif self.type == "recoilless":
+
+        # elif self.type == "infantry_at":
+
+        # elif self.type == "infantry":
+
+        # elif self.type == "vehicle":
+            # Vehicle-specific logic (if any)
+
+        
+
         if self.type == "tank":
             if self.target.type == "tank" and np.random.rand() < (
                 blue_tank_red_tank if self.team == "blue" else red_tank_blue_tank
@@ -578,7 +634,7 @@ def main():
         next_battle_time = min(f.next_fire_time for f in living_troops)
 
         if current_time == next_battle_time:
-            for troop in living_troops:
+            for troop in living_troops: #TODO: iterate randomly
                 if troop.next_fire_time <= current_time:
                     enemies = [
                         e for e in troop_list if troop.team != e.team and e.alive
