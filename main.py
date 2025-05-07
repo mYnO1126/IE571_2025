@@ -29,6 +29,8 @@ def exp_decay(range_limit, p_hit, decay_const):
 def constant_func(value):
     return lambda: value
 
+# def 
+
 
 class UnitType(Enum):
     TANK = "tank" # 전차
@@ -477,6 +479,9 @@ class Troop: # Troop class to store troop information and actions
 
         result = hitState.MISS
         rand_var = np.random.rand()
+
+        if self.type == "tank":
+
         ph = self.ph_func(self.get_distance(self.target))
         pk = self.pk_func(self.get_distance(self.target))
 
