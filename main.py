@@ -26,6 +26,9 @@ def constant_distribution(value):
 def exp_decay(range_limit, p_hit, decay_const):
     return lambda r: (p_hit if r <= range_limit else 0) * math.exp(-r / decay_const)
 
+def constant_func(value):
+    return lambda: value
+
 
 class UnitType(Enum):
     TANK = "tank" # 전차
@@ -207,7 +210,7 @@ UNIT_SPECS = {  #TODO: unit ph_func, pk_func 추가
         team="blue",
         unit_type=UnitType.ATGM,
         range_km=3.75,
-        ph_func=exp_decay(3.75, 0.9, 3.75),
+        ph_func=constant_func(0.9),
         pk_func="exp(-r/3.75)",
         target_delay_func=lambda: 0,
         fire_time_func=lambda: 0,
@@ -217,7 +220,7 @@ UNIT_SPECS = {  #TODO: unit ph_func, pk_func 추가
         team="red",
         unit_type=UnitType.ATGM,
         range_km=3.0,
-        ph_func=exp_decay(3.0, 0.85, 3.0),
+        ph_func=constant_func(0.85),
         pk_func="exp(-r/3.0)",
         target_delay_func=lambda: 0,
         fire_time_func=lambda: 0,
@@ -227,7 +230,7 @@ UNIT_SPECS = {  #TODO: unit ph_func, pk_func 추가
         team="blue",
         unit_type=UnitType.RECOILLESS,
         range_km=1.2,
-        ph_func=exp_decay(1.5, 0.7, 1.5),
+        ph_func=constant_func(0.8),
         pk_func="exp(-r/1.5)",
         target_delay_func=lambda: 0,
         fire_time_func=lambda: 0,
@@ -237,7 +240,7 @@ UNIT_SPECS = {  #TODO: unit ph_func, pk_func 추가
         team="red",
         unit_type=UnitType.RECOILLESS,
         range_km=0.6,
-        ph_func=exp_decay(1.5, 0.75, 1.5),
+        ph_func=constant_func(0.75),
         pk_func="exp(-r/1.5)",
         target_delay_func=lambda: 0,
         fire_time_func=lambda: 0,
@@ -247,7 +250,7 @@ UNIT_SPECS = {  #TODO: unit ph_func, pk_func 추가
         team="blue",
         unit_type=UnitType.RPG,
         range_km=0.3,
-        ph_func=exp_decay(0.2, 0.8, 0.2),
+        ph_func=constant_func(0.6),
         pk_func="exp(-r/0.2)",
         target_delay_func=lambda: 0,
         fire_time_func=lambda: 0,
@@ -257,7 +260,7 @@ UNIT_SPECS = {  #TODO: unit ph_func, pk_func 추가
         team="red",
         unit_type=UnitType.RPG,
         range_km=0.5,
-        ph_func=exp_decay(0.2, 0.75, 0.2),
+        ph_func=constant_func(0.65),
         pk_func="exp(-r/0.2)",
         target_delay_func=lambda: 0,
         fire_time_func=lambda: 0,
