@@ -6,12 +6,67 @@ from collections import namedtuple
 import math
 import random
 import matplotlib.pyplot as plt
+from typing import List, Tuple
 
-# MAX_TIME = 100.0 # 최대 시뮬레이션 시간 (분 단위) #for testing
+# MAX_TIME = 100.0 # 최대 시뮬레이션 시간 (분 단위) #for testingfrom typing import List, Tuple
 MAX_TIME = 2880.0 # 최대 시뮬레이션 시간 (분 단위) #TODO: 복구 요망
 # TIME_STEP = 0.01 # 시뮬레이션 시간 간격 (분 단위)
 TIME_STEP = 1.0
 BLUE_HIT_PROB_BUFF = 0.8 # BLUE 진영의 명중 확률 버프
+
+
+# Blueprint: 카테고리별로 영역(사각형)과 소속태그를 매핑
+# placement_zones[카테고리][키] = (x_range, y_range, affiliation)
+placement_zones = {
+    "TANK": {
+        "blue":         ((10, 20), (45, 55), "FixedDefense"),
+        "red_reserve":  ((80, 90), (45, 55), "Reserve"),
+        "red_E1":       ((0, 10),  (40, 50), "E1"),
+        "red_E2":       ((0, 10),  (50, 60), "E2"),
+        "red_E3":       ((0, 10),  (60, 70), "E3"),
+        "red_E4":       ((0, 10),  (70, 80), "E4"),
+    },
+    "APC": {
+        "blue":         ((12, 18), (46, 54), "FixedDefense"),
+        "red_reserve":  ((82, 88), (46, 54), "Reserve"),
+        "red_E1":       ((1,  9),  (41, 49), "E1"),
+        "red_E2":       ((1,  9),  (51, 59), "E2"),
+        "red_E3":       ((1,  9),  (61, 69), "E3"),
+        "red_E4":       ((1,  9),  (71, 79), "E4"),
+    },
+    "INFANTRY": {
+        "blue":         ((14, 16), (47, 53), "FixedDefense"),
+        "red_reserve":  ((84, 86), (47, 53), "Reserve"),
+        "red_E1":       ((2,  8),  (42, 48), "E1"),
+        "red_E2":       ((2,  8),  (52, 58), "E2"),
+        "red_E3":       ((2,  8),  (62, 68), "E3"),
+        "red_E4":       ((2,  8),  (72, 78), "E4"),
+    },
+    "ARTILLERY": {
+        "blue":         ((15, 17), (48, 52), "FixedDefense"),
+        "red_reserve":  ((85, 87), (48, 52), "Reserve"),
+        "red_E1":       ((3,  7),  (43, 47), "E1"),
+        "red_E2":       ((3,  7),  (53, 57), "E2"),
+        "red_E3":       ((3,  7),  (63, 67), "E3"),
+        "red_E4":       ((3,  7),  (73, 77), "E4"),
+    },
+    "AT_WEAPON": {
+        "blue":         ((16, 18), (49, 51), "FixedDefense"),
+        "red_reserve":  ((86, 88), (49, 51), "Reserve"),
+        "red_E1":       ((4,  6),  (44, 46), "E1"),
+        "red_E2":       ((4,  6),  (54, 56), "E2"),
+        "red_E3":       ((4,  6),  (64, 66), "E3"),
+        "red_E4":       ((4,  6),  (74, 76), "E4"),
+    },
+    "SUPPLY": {
+        "blue":         ((13, 19), (45, 55), "FixedDefense"),
+        "red_reserve":  ((83, 89), (45, 55), "Reserve"),
+        "red_E1":       ((5,  9),  (40, 50), "E1"),
+        "red_E2":       ((5,  9),  (50, 60), "E2"),
+        "red_E3":       ((5,  9),  (60, 70), "E3"),
+        "red_E4":       ((5,  9),  (70, 80), "E4"),
+    },
+}
 
 # Probability distributions for firing times
 def triangular_distribution(M, C):
@@ -139,7 +194,7 @@ class UnitComposition(Enum):
     # )
 
 class UnitSpec:
-    def __init__(self, name, team, unit_type, range_km, ph_func, pk_func, target_delay_func=constant_func(2.0), fire_time_func=constant_func(1.0)):
+    def __init__(self, name, team, unit_type, range_km, ph_func, pk_func, target_delay_func=constant_func(2.0), fire_time_func=constant_func(1.0), speed_road_kmh=0, speed_offroad_kmh=0):
         self.name = name
         self.team = team  # "blue" or "red"
         self.unit_type = unit_type  # UnitType Enum
@@ -149,6 +204,8 @@ class UnitSpec:
         self.target_delay_func = target_delay_func
         self.fire_time_func = fire_time_func
 
+        self.speed_road_kmh = speed_road_kmh
+        self.speed_offroad_kmh = speed_offroad_kmh
 
 UNIT_SPECS = {  # TODO: unit ph_func, pk_func 추가
     "Sho't_Kal": UnitSpec(
@@ -160,6 +217,8 @@ UNIT_SPECS = {  # TODO: unit ph_func, pk_func 추가
         pk_func=direct_fire_pk_func(),
         # target_delay_func=constant_func(1.0),
         # fire_time_func=constant_func(1.0),
+        speed_road_kmh=35, 
+        speed_offroad_kmh=20
     ),
     "T-55": UnitSpec(
         name="T-55",
@@ -168,6 +227,8 @@ UNIT_SPECS = {  # TODO: unit ph_func, pk_func 추가
         range_km=2.0,
         ph_func=exp_decay(2.0, 0.7, 2.0),
         pk_func=direct_fire_pk_func(),
+        speed_road_kmh=50, 
+        speed_offroad_kmh=25
     ),
     "T-62": UnitSpec(
         name="T-62",
@@ -176,6 +237,8 @@ UNIT_SPECS = {  # TODO: unit ph_func, pk_func 추가
         range_km=2.0,
         ph_func=exp_decay(2.0, 0.68, 2.0),
         pk_func=direct_fire_pk_func(),
+        speed_road_kmh=50, 
+        speed_offroad_kmh=30
     ),
     "60mm_Mortar": UnitSpec(
         name="60mm_Mortar",
@@ -261,6 +324,61 @@ UNIT_SPECS = {  # TODO: unit ph_func, pk_func 추가
         pk_func=direct_fire_pk_func(0.65),
         # pk_func=simple_pk_func(0.65),
     ),
+    "M113": UnitSpec(
+        name="M113",
+        team="blue",
+        unit_type=UnitType.APC,
+        range_km=2.0,
+        ph_func=constant_func(0.30),
+        pk_func="exp(-r/2.0)", # TODO
+        speed_road_kmh=64, 
+        speed_offroad_kmh=np.random.randint(40, 45)
+    ),
+
+    "BMP-1": UnitSpec(
+        name="BMP-1",
+        team="red",
+        unit_type=UnitType.APC,
+        range_km=0.8,
+        ph_func=constant_func(0.60),
+        pk_func="exp(-r/2.0)", # TODO
+        speed_road_kmh=65, 
+        speed_offroad_kmh=45
+    ),
+
+    # "BTR-60": UnitSpec(
+    #     name="BTR-60",
+    #     team="red",
+    #     unit_type=UnitType.APC,
+    #     range_km=0.8,
+    #     ph_func=constant_func(0.60),
+    #     pk_func="exp(-r/2.0)", # TODO
+
+    #     speed_road_kmh=80, 
+    #     speed_offroad_kmh=50
+    # ),
+
+    "Golani×2 + ATGM중대": UnitSpec(
+        name="Golani×2 + ATGM중대",
+        team="blue",
+        unit_type=UnitType.INFANTRY,
+        range_km=0.3,  # 예: AK-47 유효사거리 0.3km
+        ph_func=constant_func(0.2),  # 예: Ph=0.2 at 300m
+        pk_func="exp(-r/0.3)",
+        speed_road_kmh=5,
+        speed_offroad_kmh=5
+    ),
+    "보병여단3 + 기계화여단3": UnitSpec(
+        name="보병여단3 + 기계화여단3",
+        team="red",
+        unit_type=UnitType.INFANTRY,
+        range_km=0.3,
+        ph_func=constant_func(0.2),
+        pk_func="exp(-r/0.3)",
+        speed_road_kmh=5,
+        speed_offroad_kmh=5
+    ),
+
     "Blue_Supply_Truck": UnitSpec(
         name="Blue_Supply_Truck",
         team="blue",
@@ -268,6 +386,8 @@ UNIT_SPECS = {  # TODO: unit ph_func, pk_func 추가
         range_km=0.0,
         ph_func=exp_decay(0.1, 0.6, 0.1),
         pk_func="exp(-r/0.1)",
+        speed_road_kmh=80, 
+        speed_offroad_kmh=40
     ),
     "Red_Supply_Truck": UnitSpec(
         name="Red Supply_Truck",
@@ -276,6 +396,8 @@ UNIT_SPECS = {  # TODO: unit ph_func, pk_func 추가
         range_km=0.0,
         ph_func=exp_decay(0.1, 0.6, 0.1),
         pk_func="exp(-r/0.1)",
+        speed_road_kmh=80, 
+        speed_offroad_kmh=40
     ),
 }
 
@@ -331,17 +453,35 @@ class Map: # Map class to store map information
         self.height = height
         self.grid = np.zeros((width, height))
 
-    # def add_obstacle(self, x, y):
-    #     if 0 <= x < self.width and 0 <= y < self.height:
-    #         self.grid[x][y] = 1  # Mark as obstacle
+        # 0: 평지, 1: 험지, 2: 도로
+        self.grid = np.zeros((width, height), dtype=int)
+        self.terrain_cost = {0: 1.0, 1: 1.5, 2: 0.8}
 
-    # def is_obstacle(self, x, y):
-    #     return self.grid[x][y] == 1
+    def add_obstacle(self, x, y):
+        if 0 <= x < self.width and 0 <= y < self.height:
+            self.grid[x][y] = 1  # Mark as obstacle
+
+    def is_obstacle(self, x, y):
+        return self.grid[x][y] == 1
     
     def get_terrain(self, x, y): # Get terrain type at (x, y)
         if 0 <= x < self.width and 0 <= y < self.height:
             return self.grid[x][y]
         return None
+
+    def is_road(self, x, y):
+        xi, yi = int(x), int(y)
+        return (0 <= xi < self.width and 0 <= yi < self.height and
+                self.grid[xi, yi] == 2)
+
+    def movement_factor(self, x, y):
+        xi, yi = int(x), int(y)
+        code = self.grid[xi, yi] if (0 <= xi < self.width and 0 <= yi < self.height) else 0
+        return self.terrain_cost.get(code, 1.0)
+      
+
+
+
 
 class History: # Store history of troop actions and troop status
     def __init__(self, time):
@@ -420,7 +560,7 @@ class Troop: # Troop class to store troop information and actions
     # Static variables to keep track of troop IDs
     counter = {}
 
-    def __init__(self, unit_name, coord=Coord()):
+    def __init__(self, unit_name, coord=Coord(), affiliation: str = None):
         spec = UNIT_SPECS[unit_name]
         self.spec = spec
         self.team = spec.team
@@ -432,6 +572,8 @@ class Troop: # Troop class to store troop information and actions
         self.target_delay_func = spec.target_delay_func
         self.fire_time_func = spec.fire_time_func
 
+        self.affiliation = affiliation
+
         self.id = self.assign_id()
         self.next_fire_time = 0.0  # Initial fire time
         self.target = None
@@ -441,6 +583,17 @@ class Troop: # Troop class to store troop information and actions
         self.status = UnitStatus.ALIVE  # Placeholder for unit status
         self.ammo = 100     # ammo level (0-100%)
         self.supply = 100 # supply level (0-100%)
+
+    @classmethod
+    def batch_create(cls, category, side, x_range, y_range, affiliation):
+        troops = []
+        for unit_name, count in getattr(category.value, side).items():
+            for _ in range(count):
+                x = np.random.uniform(*x_range)
+                y = np.random.uniform(*y_range)
+                troops.append(cls(unit_name, Coord(x, y, 0), affiliation=affiliation))
+        return troops
+
 
     def assign_id(self):
         key = f"{self.team}_{self.type.value}"
@@ -567,6 +720,32 @@ class Troop: # Troop class to store troop information and actions
                 self.assign_target(current_time, enemy_list)
                 return
 
+    def compute_velocity(self, dest: Coord, battle_map: Map, current_time: float) -> Velocity:
+        # 1) 기본 속도 km/h→km/min
+        on_road = battle_map.is_road(self.coord.x, self.coord.y)
+        base_speed = (self.spec.speed_road_kmh if on_road else self.spec.speed_offroad_kmh) / 60
+
+        # 2) 지형 가중치
+        terrain_factor = battle_map.movement_factor(self.coord.x, self.coord.y)
+
+        # 3) 낮/밤 가중치 (19:00–06:00 야간엔 50% 느려짐)
+        hour = int((13*60 + 55 + current_time) // 60) % 24
+        daynight = 1.0 if 6 <= hour < 19 else 1.5
+
+        # 4) 실제 per-min 이동량
+        speed = base_speed / terrain_factor / daynight
+
+        # 5) 방향 단위 벡터
+        dx, dy = dest.x - self.coord.x, dest.y - self.coord.y
+        dist = math.hypot(dx, dy)
+        if dist == 0:
+            return Velocity(0,0,0)
+        ux, uy = dx/dist, dy/dist
+
+        move = speed * TIME_STEP
+        return Velocity(ux * move, uy * move, 0)
+    
+
 
 def assign_target_all(current_time, troop_list): #TODO: Implement target assignment logic for all troops
     for troop in troop_list:
@@ -592,7 +771,7 @@ def terminate(troop_list, current_time):
             return False
     return True
 
-def generate_troop_list(troop_list, unit_name, num_units, coord):
+def generate_troop_list(troop_list, unit_name, num_units, coord, positions: List[Tuple[float,float,float]], affiliation: str):
     for _ in range(num_units):
         troop = Troop(
             unit_name=unit_name,
@@ -600,39 +779,66 @@ def generate_troop_list(troop_list, unit_name, num_units, coord):
         )
         troop_list.append(troop)
 
-def generate_all_troops():
+# def generate_all_troops():
+#     troop_list = []
+#     for category in UnitComposition:
+#         unit_group = category.value
+
+#         # BLUE 진영 유닛 생성
+#         for unit_name, count in unit_group.blue.items():
+#             generate_troop_list(
+#                 troop_list,
+#                 unit_name=unit_name,
+#                 num_units=count,
+#                 coord=Coord(1,1,0)
+#             )
+
+#         # RED 진영 유닛 생성
+#         for unit_name, count in unit_group.red.items():
+#             generate_troop_list(
+#                 troop_list,
+#                 unit_name=unit_name,
+#                 num_units=count,
+#                 coord=Coord(2,2,0)
+#             )
+
+#     return troop_list
+
+def generate_initial_troops(placement_zones):
     troop_list = []
     for category in UnitComposition:
-        unit_group = category.value
+        # BLUE 고정 방어진지
+        xr, yr, aff = placement_zones[category.name]["blue"]
+        troop_list += Troop.batch_create(category, "blue", xr, yr, aff)
 
-        # BLUE 진영 유닛 생성
-        for unit_name, count in unit_group.blue.items():
-            generate_troop_list(
-                troop_list,
-                unit_name=unit_name,
-                num_units=count,
-                coord=Coord(1,1,0)
-            )
-
-        # RED 진영 유닛 생성
-        for unit_name, count in unit_group.red.items():
-            generate_troop_list(
-                troop_list,
-                unit_name=unit_name,
-                num_units=count,
-                coord=Coord(2,2,0)
-            )
+        # RED Reserve + E1~E4
+        for key in ["red_reserve","red_E1","red_E2","red_E3","red_E4"]:
+            xr, yr, aff = placement_zones[category.name][key]
+            troop_list += Troop.batch_create(category, "red", xr, yr, aff)
 
     return troop_list
 
-def update_troop_location(troop_list, map): #TODO: Implement troop out of bounds check logic
+# def update_troop_location(troop_list, map): #TODO: Implement troop out of bounds check logic
+#     for troop in troop_list:
+#         if troop.alive:
+#             # Update the troop's coordinates based on its velocity and time
+#             troop.update_coord()
+#             # Check if the troop is within the map boundaries
+#             if not (0 <= troop.coord.x < map.width and 0 <= troop.coord.y < map.height):
+#                 troop.alive = False  # Mark as dead if out of bounds
+
+def update_troop_location(troop_list, battle_map, current_time):
     for troop in troop_list:
-        if troop.alive:
-            # Update the troop's coordinates based on its velocity and time
-            troop.update_coord()
-            # Check if the troop is within the map boundaries
-            if not (0 <= troop.coord.x < map.width and 0 <= troop.coord.y < map.height):
-                troop.alive = False  # Mark as dead if out of bounds
+        if not troop.alive:
+            continue
+        dest = troop.target.coord if troop.target else troop.coord
+        v = troop.compute_velocity(dest, battle_map, current_time)
+        troop.update_velocity(v)
+        troop.update_coord()
+        if not (0 <= troop.coord.x < battle_map.width and
+                0 <= troop.coord.y < battle_map.height):
+            troop.alive = False
+
 
 def main():
     # Simulation parameters
@@ -648,7 +854,9 @@ def main():
     timeline_index = 0
     timeline_event = timeline[timeline_index]
 
-    troop_list = generate_all_troops()
+    # troop_list = generate_all_troops()
+    troop_list = generate_initial_troops(placement_zones = placement_zones)
+
     assign_target_all(current_time, troop_list)
     history.init_status_data(troop_list)
 
@@ -676,7 +884,10 @@ def main():
                 timeline_index += 1
 
         living_troops = [f for f in troop_list if f.alive]
-        update_troop_location(living_troops, map=battle_map)
+
+        # update_troop_location(living_troops, map=battle_map)
+        update_troop_location(living_troops, battle_map, current_time)
+
         next_battle_time = min(f.next_fire_time for f in living_troops)
         # print(f"Next battle time: {next_battle_time:.2f} min")
 
@@ -688,7 +899,6 @@ def main():
                         e for e in troop_list if troop.team != e.team and e.alive
                     ]
                     troop.fire(current_time, enemies, history)
-
 
 if __name__ == "__main__":
     main()
