@@ -11,6 +11,7 @@ import matplotlib.pyplot as plt
 MAX_TIME = 2880.0 # 최대 시뮬레이션 시간 (분 단위) #TODO: 복구 요망
 # TIME_STEP = 0.01 # 시뮬레이션 시간 간격 (분 단위)
 TIME_STEP = 1.0
+BLUE_HIT_PROB_BUFF = 0.8 # BLUE 진영의 명중 확률 버프
 
 # Probability distributions for firing times
 def triangular_distribution(M, C):
@@ -33,9 +34,9 @@ def exp_decay(range_limit, p_hit, decay_const):
 def constant_func(value):
     return lambda x: value
 
-def direct_fire_pk_func():
-    return lambda p: HitState.CKILL if p < 0.7 else (
-                     HitState.MKILL if p < 0.9 else
+def direct_fire_pk_func(coeff=1.0):
+    return lambda p: HitState.CKILL if p < 0.7*coeff else (
+                     HitState.MKILL if p < 0.9*coeff else
                      HitState.FKILL)
 
 def simple_pk_func(pk):
@@ -64,7 +65,6 @@ class UnitStatus(Enum):
     DESTROYED = "destroyed" # 파괴됨
     DAMAGED_MOBILITY = "mobility_damaged" # 기동불능
     DAMAGED_FIREPOWER = "firepower_damaged" # 화력불능
-    OUT_OF_AMMO = "out_of_ammo" # 탄약 없음
     OUT_OF_RANGE = "out_of_range" # 사거리 초과
     MOVING = "moving" # 이동중
     STATIONARY = "stationary" # 정지중
@@ -82,6 +82,11 @@ class UnitStatus(Enum):
     UNSPOT_ORDER = "unspot_order" # 발견되지 않음 명령
     HIDE_ORDER = "hide_order" # 은폐명령
     UNCOVER_ORDER = "uncover_order" # 은폐되지 않음 명령
+
+class AmmoStatus(Enum):
+    FULL = "full" # 완전
+    LOW = "low" # 부족
+    EMPTY = "empty" # 없음
 
 class UnitAction(Enum):
     MOVE = "move" # 이동
@@ -123,10 +128,11 @@ class UnitComposition(Enum):
     #     blue={"60mm_Mortar": 12, "105mm_Howitzer": 20},
     #     red={"122mm_SPG": 200, "BM-21_MLRS": 200}  # "발" 단위는 맥락상 자주포 수량과 통합 처리
     # )
-    # AT_WEAPON = UnitCategory(
-    #     blue={"BGM-71_TOW": 12, "106mm_M40_Recoilless_Rifle": 36, "M72_LAW": 12},
-    #     red={"9M14_Malyutka": 54, "107mm_B-11_Recoilless_Rifle": 36, "RPG-7": 54}
-    # )
+
+    AT_WEAPON = UnitCategory(
+        blue={"BGM-71_TOW": 12, "106mm_M40_Recoilless_Rifle": 36, "M72_LAW": 12},
+        red={"9M14_Malyutka": 54, "107mm_B-11_Recoilless_Rifle": 36, "RPG-7": 54}
+    )
     # SUPPLY = UnitCategory(
     #     blue={"Blue_Supply_Truck": 40},
     #     red={"Red_Supply_Truck": 60}
@@ -209,7 +215,7 @@ UNIT_SPECS = {  # TODO: unit ph_func, pk_func 추가
         unit_type=UnitType.ATGM,
         range_km=3.75,
         ph_func=constant_func(0.9),
-        pk_func=direct_fire_pk_func(),
+        pk_func=direct_fire_pk_func(0.9),
         # pk_func=simple_pk_func(0.9),
     ),
     "9M14_Malyutka": UnitSpec(
@@ -218,7 +224,7 @@ UNIT_SPECS = {  # TODO: unit ph_func, pk_func 추가
         unit_type=UnitType.ATGM,
         range_km=3.0,
         ph_func=constant_func(0.85),
-        pk_func=direct_fire_pk_func(),
+        pk_func=direct_fire_pk_func(0.85),
         # pk_func=simple_pk_func(0.85),
     ),
     "106mm_M40_Recoilless_Rifle": UnitSpec(
@@ -243,7 +249,7 @@ UNIT_SPECS = {  # TODO: unit ph_func, pk_func 추가
         unit_type=UnitType.RPG,
         range_km=0.3,
         ph_func=constant_func(0.6),
-        pk_func=direct_fire_pk_func(),
+        pk_func=direct_fire_pk_func(0.6),
         # pk_func=simple_pk_func(0.6),
     ),
     "RPG-7": UnitSpec(
@@ -252,7 +258,7 @@ UNIT_SPECS = {  # TODO: unit ph_func, pk_func 추가
         unit_type=UnitType.RPG,
         range_km=0.5,
         ph_func=constant_func(0.65),
-        pk_func=direct_fire_pk_func(),
+        pk_func=direct_fire_pk_func(0.65),
         # pk_func=simple_pk_func(0.65),
     ),
     "Blue_Supply_Truck": UnitSpec(
@@ -481,7 +487,7 @@ class Troop: # Troop class to store troop information and actions
             else:
                 self.target = np.random.choice(enemy_list)
 
-            if self.status == UnitStatus.DAMAGED_FIREPOWER or self.status == UnitStatus.OUT_OF_AMMO:
+            if self.status == UnitStatus.DAMAGED_FIREPOWER:
                 self.next_fire_time = float('inf')
                 return
             else:
@@ -506,6 +512,8 @@ class Troop: # Troop class to store troop information and actions
 
         # if self.type in UnitType.DIR_FIRE_UNIT:
         ph = self.ph_func(self.get_distance(self.target))
+        if self.target.team == "blue":
+            ph = ph * BLUE_HIT_PROB_BUFF
         if ph < hit_rand_var:
             result = self.pk_func(kill_rand_var)
         else:
@@ -549,7 +557,10 @@ class Troop: # Troop class to store troop information and actions
             self.next_fire_time = round(current_time + self.get_t_f(), 2)            
         
         else:
-            if result != HitState.MISS:
+            if result == HitState.MISS:
+                self.next_fire_time = round(current_time + self.get_t_f(), 2)  
+                return
+            else:
                 self.target.alive = False
                 self.target.status = UnitStatus.DESTROYED
                 self.target = None
