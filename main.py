@@ -391,13 +391,63 @@ class History: # Store history of troop actions and troop status
         return self.status_data
 
     def save_battle_log(self, filename="battle_log.csv"): # save battle log to file
-        columns = ["time", "team", "type", "shooter", "target", "fire_time", "result"]
-        df = pd.DataFrame(self.battle_log, columns=columns)
+        columns = ["time", "attacker", "attacker_type", "target", "target_type", "result"]
+        data = []
+
+        for log in self.battle_log:
+            (
+                log_time,           # 시뮬레이션 시간 (분 단위)
+                team,               # 팀 이름 ("blue" 또는 "red")
+                attacker_type,      # UnitType Enum
+                attacker_id,        # 유닛 ID
+                target_id,          # 타겟 유닛 ID
+                _,                  # fire_time (사용하지 않음)
+                result              # hitState Enum
+            ) = log
+
+            # target_type 추적을 위해 유닛 ID에서 type 추출 필요 → 아래 dict 활용
+            target_troop = next((t for t in troop_list if t.id == target_id), None)
+            target_type = target_troop.type.value if target_troop else "unknown"
+
+            # 최종 상태를 기준으로 result 결정
+            if target_troop:
+                if target_troop.status == UnitStatus.DESTROYED:
+                    final_result = "destroyed"
+                elif target_troop.status == UnitStatus.DAMAGED:
+                    final_result = "damaged"
+                elif target_troop.status == UnitStatus.ALIVE:
+                    final_result = "alive"
+                else:
+                    final_result = target_troop.status.value
+            else:
+                final_result = "unknown"
+
+            data.append([
+                round(log_time * 60, 2),  # 분 → 초
+                attacker_id,
+                attacker_type.value,
+                target_id,
+                target_type,
+                final_result
+            ])
+
+        df = pd.DataFrame(data, columns=columns)
         df.to_csv(filename, index=False)
         print("Battle log saved to battle_log.csv")
     
-    def save_status_data(self, filename="status_data.csv"): # save status data to file
-        df = pd.DataFrame(self.status_data)
+    def save_status_data(self, troop_list, filename="status_data.csv"): # save status data to file
+        data = []
+        for t_idx, time in enumerate(self.status_data["time"]):
+            time_sec = round(time * 60, 2)  # Convert from minutes to seconds
+            for troop in troop_list:
+                if troop.id in self.status_data:
+                    # Get current position
+                    x = troop.coord.x
+                    y = troop.coord.y
+                    z = troop.coord.z
+                    data.append([time_sec, troop.id, x, y, z])
+
+        df = pd.DataFrame(data, columns=["time", "unit", "x", "y", "z"])
         df.to_csv(filename, index=False)
         print("Status data saved to status_data.csv")
 
@@ -448,108 +498,121 @@ class Troop: # Troop class to store troop information and actions
             (self.coord.z - other_troop.coord.z) ** 2
         )
     
-    def assign_target(self, current_time, enemy_list): #TODO: Implement target assignment logic
-        if enemy_list:
-            self.target = np.random.choice(enemy_list)
-            if self.type == "anti_tank":
-                non_anti_tanks = [e for e in enemy_list if e.type != "anti_tank"]
-                if non_anti_tanks:
-                    self.target = np.random.choice(non_anti_tanks)
-                    self.next_fire_time = (
-                        current_time + self.t_a()
-                    )
-                else:
-                    self.next_fire_time = float('inf')  # Set fire time to infinity (never fire)
-            elif self.type == "tank":
-                self.next_fire_time = current_time + self.t_a()
-        else:
-            self.target = None
-            self.next_fire_time = float('inf')
-            print("----------------------should not happen----------------------")
+    def assign_target(self, current_time, enemy_list,battle_map=None): #TODO: Implement target assignment logic
+        # 밤 시간대: 19:00 ~ 06:00
+        is_night = (360 <= current_time % 1440 <= 1080)
 
-    def fire(self, current_time, enemy_list): #TODO: Implement firing logic
+        # 거리 계산 포함 유효 후보 필터링
+        candidates = []
+        for e in enemy_list:
+            if not e.alive:
+                continue
+            if e.status == UnitStatus.HIDDEN:
+                continue
+            distance = self.get_distance(e)
+            if distance > self.range_km:
+                continue
+            candidates.append((e, distance))
+
+        if not candidates:
+            self.target = None
+            self.next_fire_time = float("inf")
+            return
+
+        # ---- 역할별 전략: 유형별 타겟팅 로직 ----
+        def filter_priority(cand_list):
+            if self.type == UnitType.TANK:
+                return sorted(cand_list, key=lambda c: (
+                    c[0].type != UnitType.TANK,
+                    c[0].type != UnitType.ATGM,
+                    c[0].type != UnitType.APC,
+                    c[1],  # distance
+                ))
+            elif self.type == UnitType.APC:
+                return sorted(cand_list, key=lambda c: (
+                    c[0].type != UnitType.INFANTRY,
+                    c[1],
+                ))
+            elif self.type in {UnitType.ATGM, UnitType.RPG, UnitType.RECOILLESS, UnitType.INFANTRY_AT}:
+                at_targets = [c for c in cand_list if c[0].type in {UnitType.TANK, UnitType.APC}]
+                return sorted(at_targets, key=lambda c: (c[2], c[1]))
+            elif self.type in {UnitType.MORTAR, UnitType.HOWITZER, UnitType.SPG, UnitType.MLRS}:
+                return sorted(cand_list, key=lambda c: (
+                    c[0].status != UnitStatus.STATIONARY,
+                    c[1],
+                ))
+            elif self.type == UnitType.INFANTRY:
+                return sorted(cand_list, key=lambda c: (
+                    c[0].type != UnitType.INFANTRY,
+                    c[1],
+                ))
+            elif self.type == UnitType.SUPPLY:
+                self.target = None
+                self.next_fire_time = float("inf")
+                return
+            else:
+                return sorted(cand_list, key=lambda c: (c[2], c[1]))
+
+        priority_list = filter_priority(candidates)
+        if not priority_list:
+            self.target = None
+            self.next_fire_time = float("inf")
+            return
+
+        # 최종 타겟 지정
+        best_target = priority_list[0][0]
+        ta = self.target_delay_func()
+        if is_night:
+            ta *= 1.5  # 야간 표적 획득 시간 증가
+
+        self.target = best_target
+        self.next_fire_time = current_time + ta + self.fire_time_func()
+
+
+    def fire(self, current_time, enemy_list):
         if not self.alive:
             return
 
-        if self.target not in enemy_list or self.target is None:
-            self.assign_target(enemy_list)
+        # 타겟 유효성 확인
+        if self.target is None or not self.target.alive or self.target not in enemy_list:
+            self.assign_target(current_time, enemy_list)
             return
 
+        distance = self.get_distance(self.target)
+
+        # 명중 확률 계산
+        ph = self.ph_func(distance)
+
+        # 야간 명중률 보정 (19:00 ~ 06:00 = 360~1080분)
+        if 360 <= current_time % 1440 <= 1080:
+            ph *= 0.8  # 20% 감소
+
+        # 파괴 확률 계산 (단, 함수가 아닐 경우 0.5로 fallback)
+        pk = self.pk_func(distance) if callable(self.pk_func) else 0.5
+
         result = hitState.MISS
-        rand_var = np.random.rand()
-        ph = self.ph_func(self.get_distance(self.target))
-        pk = self.pk_func(self.get_distance(self.target))
+        rand_hit = np.random.rand()
 
-        # if self.type == "tank":
-        #     pk_func = self.pk_func
-
-        # elif self.type == "mortar":
-        #     pk_func = self.pk_func
-
-        # elif self.type == "howitzer":
-        #     pk_func = self.pk_func
-
-        # elif self.type == "spg":
-        #     pk_func = self.pk_func
-
-        # elif self.type == "mlrs":
-        #     pk_func = self.pk_func
-
-        # elif self.type == "atgm":
-        #     pk_func = self.pk_func
-
-        # elif self.type == "rpg":
-        #     pk_func = self.pk_func
-
-        # elif self.type == "recoilless":
-
-        # elif self.type == "infantry_at":
-
-        # elif self.type == "infantry":
-
-        # elif self.type == "vehicle":
-            # Vehicle-specific logic (if any)
-
-        
-
-        if self.type == "tank":
-            if self.target.type == "tank" and np.random.rand() < (
-                blue_tank_red_tank if self.team == "blue" else red_tank_blue_tank
-            ):
+        if rand_hit < ph:
+            # 명중 성공
+            rand_kill = np.random.rand()
+            if rand_kill < pk:
                 self.target.alive = False
-                result = "hit"
-            elif self.target.type == "anti_tank" and np.random.rand() < (
-                blue_tank_red_anti_tank
-                if self.team == "blue"
-                else red_tank_blue_anti_tank
-            ):
-                self.target.alive = False
-                result = "hit"
-        elif self.type == "anti_tank":
-            if self.target.type == "anti_tank": print("Problem firing at a non-tank target")
-            if np.random.rand() < (
-                blue_anti_tank_red_tank
-                if self.team == "blue"
-                else red_anti_tank_blue_tank
-            ):
-                self.target.alive = False
-                result = "hit"
+                self.target.status = UnitStatus.DESTROYED
+                result = hitState.DESTROYED
+            else:
+                self.target.status = UnitStatus.DAMAGED
+                result = hitState.DAMAGED
 
-        # history.append(
-        #     [
-        #         round(current_time, 2),
-        #         self.team,
-        #         self.type,
-        #         self.id,
-        #         self.target.id,
-        #         round(self.next_fire_time, 2),
-        #         result,
-        #     ]
-        # )
-        if result == "hit":
-            self.assign_target(enemy_list)
+            # 명중했으므로 즉시 타겟 재지정
+            self.assign_target(current_time, enemy_list)
         else:
-            self.next_fire_time = current_time + self.t_f()
+            # 명중 실패 → 다음 사격시간 예약
+            self.next_fire_time = current_time + self.fire_time_func()
+
+        # 로그 기록 등 외부 모듈에서 result 사용 가능
+        history.add_to_battle_log(current_time, self.team, self.type, self.id, self.target.id, self.next_fire_time, result)
+
 
 
 def assign_target_all(troop_list): #TODO: Implement target assignment logic for all troops
