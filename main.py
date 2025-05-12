@@ -7,6 +7,8 @@ import math
 import random
 import matplotlib.pyplot as plt
 from typing import List, Tuple
+import os
+import glob
 
 # MAX_TIME = 100.0 # 최대 시뮬레이션 시간 (분 단위) #for testingfrom typing import List, Tuple
 MAX_TIME = 2880.0 # 최대 시뮬레이션 시간 (분 단위) #TODO: 복구 요망
@@ -19,53 +21,53 @@ BLUE_HIT_PROB_BUFF = 0.8 # BLUE 진영의 명중 확률 버프
 # placement_zones[카테고리][키] = (x_range, y_range, affiliation)
 placement_zones = {
     "TANK": {
-        "blue":         ((10, 20), (45, 55), "FixedDefense"),
-        "red_reserve":  ((80, 90), (45, 55), "Reserve"),
-        "red_E1":       ((0, 10),  (40, 50), "E1"),
-        "red_E2":       ((0, 10),  (50, 60), "E2"),
-        "red_E3":       ((0, 10),  (60, 70), "E3"),
-        "red_E4":       ((0, 10),  (70, 80), "E4"),
+        "blue": ((0, 30), (45, 55), "FixedDefense"),
+        "red_reserve": ((70, 100), (45, 55), "Reserve"),
+        # "red_E1":       ((0, 10),  (40, 50), "E1"),
+        # "red_E2":       ((0, 10),  (50, 60), "E2"),
+        # "red_E3":       ((0, 10),  (60, 70), "E3"),
+        # "red_E4":       ((0, 10),  (70, 80), "E4"),
     },
-    "APC": {
-        "blue":         ((12, 18), (46, 54), "FixedDefense"),
-        "red_reserve":  ((82, 88), (46, 54), "Reserve"),
-        "red_E1":       ((1,  9),  (41, 49), "E1"),
-        "red_E2":       ((1,  9),  (51, 59), "E2"),
-        "red_E3":       ((1,  9),  (61, 69), "E3"),
-        "red_E4":       ((1,  9),  (71, 79), "E4"),
-    },
-    "INFANTRY": {
-        "blue":         ((14, 16), (47, 53), "FixedDefense"),
-        "red_reserve":  ((84, 86), (47, 53), "Reserve"),
-        "red_E1":       ((2,  8),  (42, 48), "E1"),
-        "red_E2":       ((2,  8),  (52, 58), "E2"),
-        "red_E3":       ((2,  8),  (62, 68), "E3"),
-        "red_E4":       ((2,  8),  (72, 78), "E4"),
-    },
-    "ARTILLERY": {
-        "blue":         ((15, 17), (48, 52), "FixedDefense"),
-        "red_reserve":  ((85, 87), (48, 52), "Reserve"),
-        "red_E1":       ((3,  7),  (43, 47), "E1"),
-        "red_E2":       ((3,  7),  (53, 57), "E2"),
-        "red_E3":       ((3,  7),  (63, 67), "E3"),
-        "red_E4":       ((3,  7),  (73, 77), "E4"),
-    },
+    # "APC": {
+    #     "blue":         ((12, 18), (46, 54), "FixedDefense"),
+    #     "red_reserve":  ((82, 88), (46, 54), "Reserve"),
+    #     "red_E1":       ((1,  9),  (41, 49), "E1"),
+    #     "red_E2":       ((1,  9),  (51, 59), "E2"),
+    #     "red_E3":       ((1,  9),  (61, 69), "E3"),
+    #     "red_E4":       ((1,  9),  (71, 79), "E4"),
+    # },
+    # "INFANTRY": {
+    #     "blue":         ((14, 16), (47, 53), "FixedDefense"),
+    #     "red_reserve":  ((84, 86), (47, 53), "Reserve"),
+    #     "red_E1":       ((2,  8),  (42, 48), "E1"),
+    #     "red_E2":       ((2,  8),  (52, 58), "E2"),
+    #     "red_E3":       ((2,  8),  (62, 68), "E3"),
+    #     "red_E4":       ((2,  8),  (72, 78), "E4"),
+    # },
+    # "ARTILLERY": {
+    #     "blue":         ((15, 17), (48, 52), "FixedDefense"),
+    #     "red_reserve":  ((85, 87), (48, 52), "Reserve"),
+    #     "red_E1":       ((3,  7),  (43, 47), "E1"),
+    #     "red_E2":       ((3,  7),  (53, 57), "E2"),
+    #     "red_E3":       ((3,  7),  (63, 67), "E3"),
+    #     "red_E4":       ((3,  7),  (73, 77), "E4"),
+    # },
     "AT_WEAPON": {
-        "blue":         ((16, 18), (49, 51), "FixedDefense"),
-        "red_reserve":  ((86, 88), (49, 51), "Reserve"),
-        "red_E1":       ((4,  6),  (44, 46), "E1"),
-        "red_E2":       ((4,  6),  (54, 56), "E2"),
-        "red_E3":       ((4,  6),  (64, 66), "E3"),
-        "red_E4":       ((4,  6),  (74, 76), "E4"),
+        "blue": ((0, 30), (45, 55), "FixedDefense"),
+        "red_reserve": ((70, 100), (45, 55), "Reserve"),
+        # "red_E1":       ((4,  6),  (44, 46), "E1"),
+        # "red_E2":       ((4,  6),  (54, 56), "E2"),
+        # "red_E3":       ((4,  6),  (64, 66), "E3"),
+        # "red_E4":       ((4,  6),  (74, 76), "E4"),
     },
-    "SUPPLY": {
-        "blue":         ((13, 19), (45, 55), "FixedDefense"),
-        "red_reserve":  ((83, 89), (45, 55), "Reserve"),
-        "red_E1":       ((5,  9),  (40, 50), "E1"),
-        "red_E2":       ((5,  9),  (50, 60), "E2"),
-        "red_E3":       ((5,  9),  (60, 70), "E3"),
-        "red_E4":       ((5,  9),  (70, 80), "E4"),
-    },
+    # "SUPPLY": {
+    #     "blue":         ((13, 19), (45, 55), "FixedDefense"),
+    #     "red_reserve":  ((83, 89), (45, 55), "Reserve"),
+    #     "red_E1":       ((5,  9),  (40, 50), "E1"),
+    #     "red_E2":       ((5,  9),  (50, 60), "E2"),
+    #     "red_E3":       ((5,  9),  (60, 70), "E3"),
+    #     "red_E4":       ((5,  9),  (70, 80), "E4"),
+    # },
 }
 
 # Probability distributions for firing times
@@ -171,6 +173,16 @@ class UnitComposition(Enum):
         red={"T-55": 300, "T-62": 200}
     )
 
+    AT_WEAPON = UnitCategory(
+        blue={"BGM-71_TOW": 12, "106mm_M40_Recoilless_Rifle": 36, "M72_LAW": 12},
+        red={"9M14_Malyutka": 54, "107mm_B-11_Recoilless_Rifle": 36, "RPG-7": 54}
+    )
+
+    # TANK = UnitCategory(
+    #     blue={"Sho't_Kal": 170},
+    #     red={"T-55": 300, "T-62": 200}
+    # )
+
     # # APC = UnitCategory( #TODO: 장갑차 추가, 사격 확률
     # #     blue={"M113": 20},
     # #     red={"BMP/BTR": 200}
@@ -184,10 +196,10 @@ class UnitComposition(Enum):
     #     red={"122mm_SPG": 200, "BM-21_MLRS": 200}  # "발" 단위는 맥락상 자주포 수량과 통합 처리
     # )
 
-    AT_WEAPON = UnitCategory(
-        blue={"BGM-71_TOW": 12, "106mm_M40_Recoilless_Rifle": 36, "M72_LAW": 12},
-        red={"9M14_Malyutka": 54, "107mm_B-11_Recoilless_Rifle": 36, "RPG-7": 54}
-    )
+    # AT_WEAPON = UnitCategory(
+    #     blue={"BGM-71_TOW": 12, "106mm_M40_Recoilless_Rifle": 36, "M72_LAW": 12},
+    #     red={"9M14_Malyutka": 54, "107mm_B-11_Recoilless_Rifle": 36, "RPG-7": 54}
+    # )
     # SUPPLY = UnitCategory(
     #     blue={"Blue_Supply_Truck": 40},
     #     red={"Red_Supply_Truck": 60}
@@ -428,24 +440,24 @@ timeline = [
     TimelineEvent(2880, "13:55(4일)", "종료: 전멸 or 시간만료", None, None),
 ]
 
-
-class Coord: # Coordinate class to store x, y, z coordinates
-    def __init__(self, x=0, y=0, z=0):
-        self.x=x
-        self.y=y
-        self.z=z
-
-    def next_coord(self, velocity):
-        # Update the coordinates based on velocity and time
-        self.x += velocity.x * TIME_STEP
-        self.y += velocity.y * TIME_STEP
-        self.z += velocity.z * TIME_STEP
-
 class Velocity: # Velocity class to store velocity information
     def __init__(self, x=0, y=0, z=0):
         self.x=x
         self.y=y
         self.z=z
+
+class Coord: # Coordinate class to store x, y, z coordinates
+    def __init__(self, x: float = 0, y: float = 0, z: float = 0):
+        self.x=x
+        self.y=y
+        self.z=z
+
+    def next_coord(self, velocity:Velocity):
+        # Update the coordinates based on velocity and time
+        self.x += velocity.x * TIME_STEP
+        self.y += velocity.y * TIME_STEP
+        self.z += velocity.z * TIME_STEP
+
 
 class Map: # Map class to store map information
     def __init__(self, width, height):
@@ -478,9 +490,6 @@ class Map: # Map class to store map information
         xi, yi = int(x), int(y)
         code = self.grid[xi, yi] if (0 <= xi < self.width and 0 <= yi < self.height) else 0
         return self.terrain_cost.get(code, 1.0)
-      
-
-
 
 
 class History: # Store history of troop actions and troop status
@@ -505,10 +514,10 @@ class History: # Store history of troop actions and troop status
                 self.status_data[f"{troop.id}_target"] = []
                 self.status_data[f"{troop.id}_fire_time"] = []
         self.add_to_status_data(troop_list)
-    
+
     def add_to_battle_log(self,team,type_,shooter,target,result): # add to battle log
         self.battle_log.append([self.current_time,team,type_,shooter,target,result])
-    
+
     def add_to_status_data(self, troop_list): # add to status data
         self.status_data["time"].append(self.current_time)
         for troop in troop_list:
@@ -518,7 +527,7 @@ class History: # Store history of troop actions and troop status
 
     def get_battle_log(self): # return battle log
         return self.battle_log  
-    
+
     def get_status_data(self): # return status data
         return self.status_data
 
@@ -527,15 +536,33 @@ class History: # Store history of troop actions and troop status
         df = pd.DataFrame(self.battle_log, columns=columns)
         df.to_csv(filename, index=False)
         print("Battle log saved to battle_log.csv")
-    
+
     def save_status_data(self, filename="status_data.csv"): # save status data to file
         df = pd.DataFrame(self.status_data)
         df.to_csv(filename, index=False)
         print("Status data saved to status_data.csv")
 
-    def plot_team_strength_over_time(self, filename="team_strength_over_time.png"):
+    def draw_troop_positions(self, troop_list, current_time, save_dir="frames"):
+        plt.figure(figsize=(8, 8))
+        for troop in troop_list:
+            if not troop.alive:
+                continue
+            color = "blue" if troop.team == "blue" else "red"
+            marker = "o" if troop.type == UnitType.TANK else "s"
+            plt.scatter(troop.coord.x, troop.coord.y, c=color, marker=marker, label=troop.id, alpha=0.7, s=30)
+        plt.title(f"Troop Positions at T={current_time:.0f} min")
+        plt.xlim(0, 100)
+        plt.ylim(0, 100)
+        plt.xlabel("X")
+        plt.ylabel("Y")
+        plt.grid(True)
+        plt.tight_layout()
+        plt.savefig(f"{save_dir}/frame_{int(current_time):05d}.png")
+        plt.close()
+
+    def plot_team_strength_over_time(self, foldername="res/res0"):
         df = pd.DataFrame(self.status_data)
-        
+
         time_col = df["time"]
         blue_cols = [col for col in df.columns if "_status" in col and col.startswith("B")]
         red_cols = [col for col in df.columns if "_status" in col and col.startswith("R")]
@@ -552,9 +579,9 @@ class History: # Store history of troop actions and troop status
         plt.legend()
         plt.grid(True)
         plt.tight_layout()
-        plt.savefig(filename, dpi=300)  # ✅ 파일 저장
+        plt.savefig(foldername+"/plot.png", dpi=300)  # ✅ 파일 저장
         plt.show()
-        print(f"Graph saved as {filename}")
+        print(f"Graph saved as {foldername}/plot.png")
 
 class Troop: # Troop class to store troop information and actions
     # Static variables to keep track of troop IDs
@@ -588,12 +615,17 @@ class Troop: # Troop class to store troop information and actions
     def batch_create(cls, category, side, x_range, y_range, affiliation):
         troops = []
         for unit_name, count in getattr(category.value, side).items():
+            if unit_name not in UNIT_SPECS:
+                print(f"[ERROR] UNIT_SPECS에 없는 유닛명: {unit_name}")
+                continue
             for _ in range(count):
                 x = np.random.uniform(*x_range)
                 y = np.random.uniform(*y_range)
-                troops.append(cls(unit_name, Coord(x, y, 0), affiliation=affiliation))
+                troop = cls(unit_name, Coord(x, y, 0), affiliation=affiliation)
+                if not isinstance(troop, Troop):
+                    print(f"[ERROR] 잘못 생성된 troop: {troop}")
+                troops.append(troop)
         return troops
-
 
     def assign_id(self):
         key = f"{self.team}_{self.type.value}"
@@ -706,9 +738,9 @@ class Troop: # Troop class to store troop information and actions
                     self.target.status = UnitStatus.DESTROYED
                 else:
                     self.target.status = UnitStatus.DAMAGED_FIREPOWER
-            
+
             self.next_fire_time = round(current_time + self.get_t_f(), 2)            
-        
+
         else:
             if result == HitState.MISS:
                 self.next_fire_time = round(current_time + self.get_t_f(), 2)  
@@ -744,7 +776,6 @@ class Troop: # Troop class to store troop information and actions
 
         move = speed * TIME_STEP
         return Velocity(ux * move, uy * move, 0)
-    
 
 
 def assign_target_all(current_time, troop_list): #TODO: Implement target assignment logic for all troops
@@ -812,7 +843,8 @@ def generate_initial_troops(placement_zones):
         troop_list += Troop.batch_create(category, "blue", xr, yr, aff)
 
         # RED Reserve + E1~E4
-        for key in ["red_reserve","red_E1","red_E2","red_E3","red_E4"]:
+        # for key in ["red_reserve","red_E1","red_E2","red_E3","red_E4"]:
+        for key in ["red_reserve"]:
             xr, yr, aff = placement_zones[category.name][key]
             troop_list += Troop.batch_create(category, "red", xr, yr, aff)
 
@@ -840,16 +872,35 @@ def update_troop_location(troop_list, battle_map, current_time):
             troop.alive = False
 
 
+def clear_frames_folder(folder="frames"):
+    if not os.path.exists(folder):
+        os.makedirs(folder)
+        return
+    for file in glob.glob(os.path.join(folder, "*.png")):
+        os.remove(file)
+
+
+def initialize_folders():
+    os.makedirs("res", exist_ok=True)
+    i=0
+    while os.path.exists("res/res"+str(i)):
+        i+=1
+    os.makedirs("res/res" + str(i), exist_ok=True)
+    os.makedirs("res/res" + str(i)+"/frames", exist_ok=True)
+    return "res/res" + str(i)
+
+
 def main():
     # Simulation parameters
     random.seed(42)  # For reproducibility
     np.random.seed(42)  # For reproducibility
     # Initialize simulation variables
+    res_loc = initialize_folders()
 
     current_time = 0.0
     hist_record_time = 0.0
     history = History(time=current_time)
-    battle_map = Map(5, 5)  # Create a map of size 100x100
+    battle_map = Map(100, 100)  # Create a map of size 100x100
 
     timeline_index = 0
     timeline_event = timeline[timeline_index]
@@ -864,12 +915,13 @@ def main():
         if hist_record_time==1.0:
             history.add_to_status_data(troop_list)  
             hist_record_time = 0.0
+            history.draw_troop_positions(troop_list, current_time, save_dir=res_loc+"/frames")
 
         if terminate(troop_list=troop_list, current_time=current_time):
-            history.save_battle_log('res/battle_log.csv')
-            history.save_status_data('res/status_data.csv')
+            history.save_battle_log(res_loc+'/battle_log.csv')
+            history.save_status_data(res_loc+'/status_data.csv')
             print("Simulation terminated.")
-            history.plot_team_strength_over_time('res/team_strength_over_time.png')
+            history.plot_team_strength_over_time(res_loc)
             break
 
         current_time = round(current_time + TIME_STEP, 2)
@@ -901,4 +953,5 @@ def main():
                     troop.fire(current_time, enemies, history)
 
 if __name__ == "__main__":
+
     main()
