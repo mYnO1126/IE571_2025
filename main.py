@@ -9,7 +9,8 @@ import matplotlib.pyplot as plt
 
 # MAX_TIME = 100.0 # 최대 시뮬레이션 시간 (분 단위) #for testing
 MAX_TIME = 2880.0 # 최대 시뮬레이션 시간 (분 단위) #TODO: 복구 요망
-TIME_STEP = 0.01 # 시뮬레이션 시간 간격 (분 단위)
+# TIME_STEP = 0.01 # 시뮬레이션 시간 간격 (분 단위)
+TIME_STEP = 1.0
 
 # Probability distributions for firing times
 def triangular_distribution(M, C):
@@ -30,7 +31,7 @@ def exp_decay(range_limit, p_hit, decay_const):
     return lambda r: (p_hit if r <= range_limit else 0) * math.exp(-r / decay_const)
 
 def constant_func(value):
-    return lambda: value
+    return lambda x: value
 
 def direct_fire_pk_func():
     return lambda p: HitState.CKILL if p < 0.7 else (
@@ -61,7 +62,8 @@ class UnitType(Enum):
 class UnitStatus(Enum):
     ALIVE = "alive" # 살아있음
     DESTROYED = "destroyed" # 파괴됨
-    DAMAGED = "damaged" # 손상됨
+    DAMAGED_MOBILITY = "mobility_damaged" # 기동불능
+    DAMAGED_FIREPOWER = "firepower_damaged" # 화력불능
     OUT_OF_AMMO = "out_of_ammo" # 탄약 없음
     OUT_OF_RANGE = "out_of_range" # 사거리 초과
     MOVING = "moving" # 이동중
@@ -207,7 +209,8 @@ UNIT_SPECS = {  # TODO: unit ph_func, pk_func 추가
         unit_type=UnitType.ATGM,
         range_km=3.75,
         ph_func=constant_func(0.9),
-        pk_func=simple_pk_func(0.9),
+        pk_func=direct_fire_pk_func(),
+        # pk_func=simple_pk_func(0.9),
     ),
     "9M14_Malyutka": UnitSpec(
         name="9M14_Malyutka",
@@ -215,7 +218,8 @@ UNIT_SPECS = {  # TODO: unit ph_func, pk_func 추가
         unit_type=UnitType.ATGM,
         range_km=3.0,
         ph_func=constant_func(0.85),
-        pk_func=simple_pk_func(0.85),
+        pk_func=direct_fire_pk_func(),
+        # pk_func=simple_pk_func(0.85),
     ),
     "106mm_M40_Recoilless_Rifle": UnitSpec(
         name="106mm_M40_Recoilless_Rifle",
@@ -223,7 +227,7 @@ UNIT_SPECS = {  # TODO: unit ph_func, pk_func 추가
         unit_type=UnitType.RECOILLESS,
         range_km=1.2,
         ph_func=constant_func(0.8),
-        pk_func="exp(-r/1.5)",
+        pk_func=direct_fire_pk_func(),
     ),
     "107mm_B-11_Recoilless_Rifle": UnitSpec(
         name="107mm_B-11_Recoilless_Rifle",
@@ -231,7 +235,7 @@ UNIT_SPECS = {  # TODO: unit ph_func, pk_func 추가
         unit_type=UnitType.RECOILLESS,
         range_km=0.6,
         ph_func=constant_func(0.75),
-        pk_func="exp(-r/1.5)",
+        pk_func=direct_fire_pk_func(),
     ),
     "M72_LAW": UnitSpec(
         name="M72_LAW",
@@ -239,7 +243,8 @@ UNIT_SPECS = {  # TODO: unit ph_func, pk_func 추가
         unit_type=UnitType.RPG,
         range_km=0.3,
         ph_func=constant_func(0.6),
-        pk_func=simple_pk_func(0.6),
+        pk_func=direct_fire_pk_func(),
+        # pk_func=simple_pk_func(0.6),
     ),
     "RPG-7": UnitSpec(
         name="RPG-7",
@@ -247,7 +252,8 @@ UNIT_SPECS = {  # TODO: unit ph_func, pk_func 추가
         unit_type=UnitType.RPG,
         range_km=0.5,
         ph_func=constant_func(0.65),
-        pk_func=simple_pk_func(0.65),
+        pk_func=direct_fire_pk_func(),
+        # pk_func=simple_pk_func(0.65),
     ),
     "Blue_Supply_Truck": UnitSpec(
         name="Blue_Supply_Truck",
@@ -434,7 +440,7 @@ class Troop: # Troop class to store troop information and actions
         key = f"{self.team}_{self.type.value}"
         if key not in Troop.counter:
             Troop.counter[key] = 1
-        label = f"{self.team[0].upper()}{self.type.value[:2].upper()}{Troop.counter[key]}"
+        label = f"{self.team[0].upper()}_{self.type.value[:2].upper()}{Troop.counter[key]}"
         Troop.counter[key] += 1
         return label
 
@@ -452,9 +458,9 @@ class Troop: # Troop class to store troop information and actions
         )
 
     def get_t_a(self):
-        return self.target_delay_func() if self.target else 0
+        return self.target_delay_func(0) if self.target else 0
     def get_t_f(self):
-        return self.fire_time_func() if self.target else 0
+        return self.fire_time_func(0) if self.target else 0
 
     def assign_target(self, current_time, enemy_list): #TODO: Implement target assignment logic
         if self.type == UnitType.SUPPLY:
@@ -462,12 +468,29 @@ class Troop: # Troop class to store troop information and actions
             self.next_fire_time = float('inf')
             return
         if enemy_list:
-            self.target = np.random.choice(enemy_list)
-            self.next_fire_time = round(current_time + self.get_t_a() + self.get_t_f(), 2)
+            if self.type == UnitType.ATGM or self.type == UnitType.RECOILLESS or self.type == UnitType.RPG:
+                enemy_tank_list = [e for e in enemy_list if e.type == UnitType.TANK] 
+                self.target = np.random.choice(enemy_tank_list) if enemy_tank_list else None
+                if self.target is None:
+                    self.next_fire_time = float('inf')
+                    return
+                # if self.get_distance(self.target) > self.range_km:
+                #     self.status = UnitStatus.OUT_OF_RANGE
+                #     self.next_fire_time = float('inf')
+                #     return
+            else:
+                self.target = np.random.choice(enemy_list)
+
+            if self.status == UnitStatus.DAMAGED_FIREPOWER or self.status == UnitStatus.OUT_OF_AMMO:
+                self.next_fire_time = float('inf')
+                return
+            else:
+                self.next_fire_time = round(current_time + self.get_t_a() + self.get_t_f(), 2)
         else:
             self.target = None
             self.next_fire_time = float('inf')
             # print("no more enemy left")
+            return
 
     def fire(self, current_time, enemy_list, history): #TODO: Implement firing logic
         if not self.alive:
@@ -503,14 +526,35 @@ class Troop: # Troop class to store troop information and actions
             result=result.value,
         )
 
-        if result == HitState.CKILL:
-            self.target.alive = False
-            self.target.status = UnitStatus.DESTROYED
-            self.target = None
-            self.assign_target(current_time, enemy_list)
-        elif result == HitState.MKILL or result == HitState.CKILL:
-            self.target.status = UnitStatus.DAMAGED
-        self.next_fire_time = round(current_time + self.get_t_f(), 2)
+        if self.target.type == UnitType.TANK:
+            if result == HitState.CKILL:
+                self.target.alive = False
+                self.target.status = UnitStatus.DESTROYED
+                self.target = None
+                self.assign_target(current_time, enemy_list)
+                return
+            elif result == HitState.MKILL:
+                if self.target.status == UnitStatus.DAMAGED_FIREPOWER:
+                    self.target.alive = False
+                    self.target.status = UnitStatus.DESTROYED
+                else:
+                    self.target.status = UnitStatus.DAMAGED_MOBILITY
+            elif result == HitState.FKILL:
+                if self.target.status == UnitStatus.DAMAGED_MOBILITY:
+                    self.target.alive = False
+                    self.target.status = UnitStatus.DESTROYED
+                else:
+                    self.target.status = UnitStatus.DAMAGED_FIREPOWER
+            
+            self.next_fire_time = round(current_time + self.get_t_f(), 2)            
+        
+        else:
+            if result != HitState.MISS:
+                self.target.alive = False
+                self.target.status = UnitStatus.DESTROYED
+                self.target = None
+                self.assign_target(current_time, enemy_list)
+                return
 
 
 def assign_target_all(current_time, troop_list): #TODO: Implement target assignment logic for all troops
