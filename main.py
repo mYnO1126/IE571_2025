@@ -691,12 +691,17 @@ class Troop: # Troop class to store troop information and actions
             self.assign_target(current_time, enemy_list)
             return 
 
+        distance = self.get_distance(self.target)
         result = HitState.MISS
         hit_rand_var = np.random.rand()
         kill_rand_var = np.random.rand()
 
         # if self.type in UnitType.DIR_FIRE_UNIT:
         ph = self.ph_func(self.get_distance(self.target))
+        # 야간 명중률 보정 (19:00 ~ 06:00 = 360~1080분)
+        if 360 <= current_time % 1440 <= 1080:
+            ph *= 0.8  # 20% 감소
+            
         if self.target.team == "blue":
             ph = ph * BLUE_HIT_PROB_BUFF
         if ph < hit_rand_var:
