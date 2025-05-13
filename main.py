@@ -682,6 +682,76 @@ class Troop: # Troop class to store troop information and actions
             self.next_fire_time = float('inf')
             # print("no more enemy left")
             return
+        
+        # def assign_target(self, current_time, enemy_list,battle_map=None): #TODO: Implement target assignment logic
+        #     # 밤 시간대: 19:00 ~ 06:00
+        #     is_night = (360 <= current_time % 1440 <= 1080)
+
+        #     # 거리 계산 포함 유효 후보 필터링
+        #     candidates = []
+        #     for e in enemy_list:
+        #         if not e.alive:
+        #             continue
+        #         if e.status == UnitStatus.HIDDEN:
+        #             continue
+        #         distance = self.get_distance(e)
+        #         if distance > self.range_km:
+        #             continue
+        #         candidates.append((e, distance))
+
+        #     if not candidates:
+        #         self.target = None
+        #         self.next_fire_time = float("inf")
+        #         return
+
+        #     # ---- 역할별 전략: 유형별 타겟팅 로직 ----
+        #     def filter_priority(cand_list):
+        #         if self.type == UnitType.TANK:
+        #             return sorted(cand_list, key=lambda c: (
+        #                 c[0].type != UnitType.TANK,
+        #                 c[0].type != UnitType.ATGM,
+        #                 c[0].type != UnitType.APC,
+        #                 c[1],  # distance
+        #             ))
+        #         elif self.type == UnitType.APC:
+        #             return sorted(cand_list, key=lambda c: (
+        #                 c[0].type != UnitType.INFANTRY,
+        #                 c[1],
+        #             ))
+        #         elif self.type in {UnitType.ATGM, UnitType.RPG, UnitType.RECOILLESS, UnitType.INFANTRY_AT}:
+        #             at_targets = [c for c in cand_list if c[0].type in {UnitType.TANK, UnitType.APC}]
+        #             return sorted(at_targets, key=lambda c: (c[2], c[1]))
+        #         elif self.type in {UnitType.MORTAR, UnitType.HOWITZER, UnitType.SPG, UnitType.MLRS}:
+        #             return sorted(cand_list, key=lambda c: (
+        #                 c[0].status != UnitStatus.STATIONARY,
+        #                 c[1],
+        #             ))
+        #         elif self.type == UnitType.INFANTRY:
+        #             return sorted(cand_list, key=lambda c: (
+        #                 c[0].type != UnitType.INFANTRY,
+        #                 c[1],
+        #             ))
+        #         elif self.type == UnitType.SUPPLY:
+        #             self.target = None
+        #             self.next_fire_time = float("inf")
+        #             return
+        #         else:
+        #             return sorted(cand_list, key=lambda c: (c[2], c[1]))
+
+        #     priority_list = filter_priority(candidates)
+        #     if not priority_list:
+        #         self.target = None
+        #         self.next_fire_time = float("inf")
+        #         return
+
+        #     # 최종 타겟 지정
+        #     best_target = priority_list[0][0]
+        #     ta = self.target_delay_func()
+        #     if is_night:
+        #         ta *= 1.5  # 야간 표적 획득 시간 증가
+
+        #     self.target = best_target
+        #     self.next_fire_time = current_time + ta + self.fire_time_func()
 
     def fire(self, current_time, enemy_list, history): #TODO: Implement firing logic
         if not self.alive:
