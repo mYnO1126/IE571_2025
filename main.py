@@ -206,7 +206,7 @@ class UnitComposition(Enum):
     # )
 
 class UnitSpec:
-    def __init__(self, name, team, unit_type, range_km, ph_func, pk_func, target_delay_func=constant_func(2.0), fire_time_func=constant_func(1.0), speed_road_kmh=0, speed_offroad_kmh=0):
+    def __init__(self, name, team, unit_type, range_km, ph_func, pk_func, target_delay_func=constant_func(2.0), fire_time_func=constant_func(1.0), speed_road_kmh=1000, speed_offroad_kmh=1000):
         self.name = name
         self.team = team  # "blue" or "red"
         self.unit_type = unit_type  # UnitType Enum
@@ -229,8 +229,8 @@ UNIT_SPECS = {  # TODO: unit ph_func, pk_func 추가
         pk_func=direct_fire_pk_func(),
         # target_delay_func=constant_func(1.0),
         # fire_time_func=constant_func(1.0),
-        speed_road_kmh=35, 
-        speed_offroad_kmh=20
+        # speed_road_kmh=35, 
+        # speed_offroad_kmh=20
     ),
     "T-55": UnitSpec(
         name="T-55",
@@ -239,8 +239,8 @@ UNIT_SPECS = {  # TODO: unit ph_func, pk_func 추가
         range_km=2.0,
         ph_func=exp_decay(2.0, 0.7, 2.0),
         pk_func=direct_fire_pk_func(),
-        speed_road_kmh=50, 
-        speed_offroad_kmh=25
+        # speed_road_kmh=50, 
+        # speed_offroad_kmh=25
     ),
     "T-62": UnitSpec(
         name="T-62",
@@ -249,8 +249,8 @@ UNIT_SPECS = {  # TODO: unit ph_func, pk_func 추가
         range_km=2.0,
         ph_func=exp_decay(2.0, 0.68, 2.0),
         pk_func=direct_fire_pk_func(),
-        speed_road_kmh=50, 
-        speed_offroad_kmh=30
+        # speed_road_kmh=50, 
+        # speed_offroad_kmh=30
     ),
     "60mm_Mortar": UnitSpec(
         name="60mm_Mortar",
@@ -499,6 +499,14 @@ class History: # Store history of troop actions and troop status
         self.status_data = {
             "time": [], 
             }
+        
+        self.visualization_data = {
+            "time": [],
+            "unit": [],
+            "x": [],
+            "y": [],
+            "z": []
+        }
 
     def update_time(self, time): # update current time
         if time >= self.current_time:
@@ -515,8 +523,8 @@ class History: # Store history of troop actions and troop status
                 self.status_data[f"{troop.id}_fire_time"] = []
         self.add_to_status_data(troop_list)
 
-    def add_to_battle_log(self,team,type_,shooter,target,result): # add to battle log
-        self.battle_log.append([self.current_time,team,type_,shooter,target,result])
+    def add_to_battle_log(self,type_,shooter,target, target_type, result): # add to battle log
+        self.battle_log.append([self.current_time,shooter,type_,target, target_type, result])
 
     def add_to_status_data(self, troop_list): # add to status data
         self.status_data["time"].append(self.current_time)
@@ -525,20 +533,50 @@ class History: # Store history of troop actions and troop status
             self.status_data[f"{troop.id}_target"].append(troop.target.id if troop.target else None)
             self.status_data[f"{troop.id}_fire_time"].append(troop.next_fire_time if troop.alive else None)
 
+        for troop in troop_list:    
+            if troop.alive:
+                self.visualization_data["time"].append(self.current_time)
+                self.visualization_data["unit"].append(troop.id)
+                self.visualization_data["x"].append(troop.coord.x)
+                self.visualization_data["y"].append(troop.coord.y)
+                self.visualization_data["z"].append(troop.coord.z)
+
     def get_battle_log(self): # return battle log
         return self.battle_log  
 
     def get_status_data(self): # return status data
         return self.status_data
 
-    def save_battle_log(self, filename="battle_log.csv"): # save battle log to file
-        columns = ["time", "team", "type", "shooter", "target", "result"]
+    def save_battle_log(self, foldername="res/res0"): # save battle log to file
+        columns = ["time", "shooter", "shooter_type", "target", "target_type", "result"]
         df = pd.DataFrame(self.battle_log, columns=columns)
-        df.to_csv(filename, index=False)
+        df.to_csv(foldername + "/battle_log.csv", index=False)
         print("Battle log saved to battle_log.csv")
 
-    def save_status_data(self, filename="status_data.csv"): # save status data to file
+
+    def save_status_data(self, foldername="res/res0"): # save status data to file
         df = pd.DataFrame(self.status_data)
+        df.to_csv(foldername + "/status_data.csv", index=False)
+        print("Status data saved to status_data.csv")
+
+        df_2 = pd.DataFrame(self.visualization_data)
+        df_2.to_csv(foldername + "/visualization_data.csv", index=False)
+        print("Visualization data saved to visualization_data.csv")
+    
+    
+    def save_status_data_new(self, troop_list, filename="status_data.csv"): # save status data to file
+        data = []
+        for t_idx, time in enumerate(self.status_data["time"]):
+            time_sec = round(time * 60, 2)  # Convert from minutes to seconds
+            for troop in troop_list:
+                if troop.id in self.status_data:
+                    # Get current position
+                    x = troop.coord.x
+                    y = troop.coord.y
+                    z = troop.coord.z
+                    data.append([time_sec, troop.id, x, y, z])
+
+        df = pd.DataFrame(data, columns=["time", "unit", "x", "y", "z"])
         df.to_csv(filename, index=False)
         print("Status data saved to status_data.csv")
 
@@ -652,114 +690,96 @@ class Troop: # Troop class to store troop information and actions
         return self.target_delay_func(0) if self.target else 0
     def get_t_f(self):
         return self.fire_time_func(0) if self.target else 0
+    
+        # ---- 역할별 전략: 유형별 타겟팅 로직 ----
+    def filter_priority(self, cand_list):
+        if self.type == UnitType.TANK:
+            return sorted(cand_list, key=lambda c: (
+                c[0].type != UnitType.TANK,
+                c[0].type != UnitType.ATGM,
+                c[0].type != UnitType.APC,
+                c[1],  # distance
+            ))
+        elif self.type == UnitType.APC:
+            return sorted(cand_list, key=lambda c: (
+                c[0].type != UnitType.INFANTRY,
+                c[1],
+            ))
+        elif self.type in {UnitType.ATGM, UnitType.RPG, UnitType.RECOILLESS, UnitType.INFANTRY_AT}:
+            at_targets = [c for c in cand_list if c[0].type in {UnitType.TANK, UnitType.APC}]
+            return sorted(at_targets, key=lambda c: (c[2], c[1]))
+        elif self.type in {UnitType.MORTAR, UnitType.HOWITZER, UnitType.SPG, UnitType.MLRS}:
+            return sorted(cand_list, key=lambda c: (
+                c[0].status != UnitStatus.STATIONARY,
+                c[1],
+            ))
+        elif self.type == UnitType.INFANTRY:
+            return sorted(cand_list, key=lambda c: (
+                c[0].type != UnitType.INFANTRY,
+                c[1],
+            ))
+        elif self.type == UnitType.SUPPLY:
+            self.target = None
+            self.next_fire_time = float("inf")
+            return
+        else:
+            return sorted(cand_list, key=lambda c: (c[2], c[1]))
 
     def assign_target(self, current_time, enemy_list): #TODO: Implement target assignment logic
-        if self.type == UnitType.SUPPLY:
-            self.target = None
-            self.next_fire_time = float('inf')
-            return
-        if enemy_list:
-            if self.type == UnitType.ATGM or self.type == UnitType.RECOILLESS or self.type == UnitType.RPG:
-                enemy_tank_list = [e for e in enemy_list if e.type == UnitType.TANK] 
-                self.target = np.random.choice(enemy_tank_list) if enemy_tank_list else None
-                if self.target is None:
-                    self.next_fire_time = float('inf')
-                    return
-                # if self.get_distance(self.target) > self.range_km:
-                #     self.status = UnitStatus.OUT_OF_RANGE
-                #     self.next_fire_time = float('inf')
-                #     return
-            else:
-                self.target = np.random.choice(enemy_list)
+        # 밤 시간대: 19:00 ~ 06:00
+        is_night = (360 <= current_time % 1440 <= 1080)
 
-            if self.status == UnitStatus.DAMAGED_FIREPOWER:
+        if enemy_list:
+            # 거리 계산 포함 유효 후보 필터링
+            candidates = [] 
+            for e in enemy_list:
+                if not e.alive:
+                    continue
+                if e.status == UnitStatus.HIDDEN:
+                    continue
+                distance = self.get_distance(e)
+                # if distance > self.range_km:  #TODO: 사거리 제한
+                #     continue
+                candidates.append((e, distance,1))
+            
+            if not candidates:
+                self.target = None
                 self.next_fire_time = float('inf')
                 return
-            else:
-                self.next_fire_time = round(current_time + self.get_t_a() + self.get_t_f(), 2)
+            
+            priority_list = self.filter_priority(candidates)
+            if not priority_list:
+                self.target = None
+                self.next_fire_time = float("inf")
+                return
+
+            # 최종 타겟 지정
+            best_target = priority_list[0][0]
+            ta = self.get_t_a()
+            if is_night:
+                ta *= 1.5  # 야간 표적 획득 시간 증가
+
+            self.target = best_target
+            self.next_fire_time = round(current_time + ta + self.get_t_f(), 2)
+
         else:
             self.target = None
             self.next_fire_time = float('inf')
             # print("no more enemy left")
             return
-        
-        # def assign_target(self, current_time, enemy_list,battle_map=None): #TODO: Implement target assignment logic
-        #     # 밤 시간대: 19:00 ~ 06:00
-        #     is_night = (360 <= current_time % 1440 <= 1080)
-
-        #     # 거리 계산 포함 유효 후보 필터링
-        #     candidates = []
-        #     for e in enemy_list:
-        #         if not e.alive:
-        #             continue
-        #         if e.status == UnitStatus.HIDDEN:
-        #             continue
-        #         distance = self.get_distance(e)
-        #         if distance > self.range_km:
-        #             continue
-        #         candidates.append((e, distance))
-
-        #     if not candidates:
-        #         self.target = None
-        #         self.next_fire_time = float("inf")
-        #         return
-
-        #     # ---- 역할별 전략: 유형별 타겟팅 로직 ----
-        #     def filter_priority(cand_list):
-        #         if self.type == UnitType.TANK:
-        #             return sorted(cand_list, key=lambda c: (
-        #                 c[0].type != UnitType.TANK,
-        #                 c[0].type != UnitType.ATGM,
-        #                 c[0].type != UnitType.APC,
-        #                 c[1],  # distance
-        #             ))
-        #         elif self.type == UnitType.APC:
-        #             return sorted(cand_list, key=lambda c: (
-        #                 c[0].type != UnitType.INFANTRY,
-        #                 c[1],
-        #             ))
-        #         elif self.type in {UnitType.ATGM, UnitType.RPG, UnitType.RECOILLESS, UnitType.INFANTRY_AT}:
-        #             at_targets = [c for c in cand_list if c[0].type in {UnitType.TANK, UnitType.APC}]
-        #             return sorted(at_targets, key=lambda c: (c[2], c[1]))
-        #         elif self.type in {UnitType.MORTAR, UnitType.HOWITZER, UnitType.SPG, UnitType.MLRS}:
-        #             return sorted(cand_list, key=lambda c: (
-        #                 c[0].status != UnitStatus.STATIONARY,
-        #                 c[1],
-        #             ))
-        #         elif self.type == UnitType.INFANTRY:
-        #             return sorted(cand_list, key=lambda c: (
-        #                 c[0].type != UnitType.INFANTRY,
-        #                 c[1],
-        #             ))
-        #         elif self.type == UnitType.SUPPLY:
-        #             self.target = None
-        #             self.next_fire_time = float("inf")
-        #             return
-        #         else:
-        #             return sorted(cand_list, key=lambda c: (c[2], c[1]))
-
-        #     priority_list = filter_priority(candidates)
-        #     if not priority_list:
-        #         self.target = None
-        #         self.next_fire_time = float("inf")
-        #         return
-
-        #     # 최종 타겟 지정
-        #     best_target = priority_list[0][0]
-        #     ta = self.target_delay_func()
-        #     if is_night:
-        #         ta *= 1.5  # 야간 표적 획득 시간 증가
-
-        #     self.target = best_target
-        #     self.next_fire_time = current_time + ta + self.fire_time_func()
+    
 
     def fire(self, current_time, enemy_list, history): #TODO: Implement firing logic
         if not self.alive:
             return
-
+        
         if self.target.alive == False or self.target is None:
             self.assign_target(current_time, enemy_list)
             return 
+        
+        if self.status == UnitStatus.DAMAGED_FIREPOWER:
+            self.next_fire_time = round(current_time + self.get_t_f(), 2)   
+            return
 
         distance = self.get_distance(self.target)
         result = HitState.MISS
@@ -787,10 +807,10 @@ class Troop: # Troop class to store troop information and actions
         #         result = HitState.MISS
 
         history.add_to_battle_log(
-            team=self.team,
             type_=self.type.value,
             shooter=self.id,
             target=self.target.id if self.target else None,
+            target_type=self.target.type.value if self.target else None,
             result=result.value,
         )
 
@@ -993,8 +1013,8 @@ def main():
             history.draw_troop_positions(troop_list, current_time, save_dir=res_loc+"/frames")
 
         if terminate(troop_list=troop_list, current_time=current_time):
-            history.save_battle_log(res_loc+'/battle_log.csv')
-            history.save_status_data(res_loc+'/status_data.csv')
+            history.save_battle_log(res_loc)
+            history.save_status_data(res_loc)
             print("Simulation terminated.")
             history.plot_team_strength_over_time(res_loc)
             break
