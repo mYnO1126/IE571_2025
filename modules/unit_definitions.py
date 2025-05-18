@@ -5,6 +5,7 @@ from enum import Enum
 from collections import namedtuple
 import numpy as np
 import math
+from .map import Coord
 
 
 # MAX_TIME = 100.0 # 최대 시뮬레이션 시간 (분 단위) #for testingfrom typing import List, Tuple
@@ -49,6 +50,21 @@ def direct_fire_pk_func(coeff=1.0):
 
 def simple_pk_func(pk):
     return lambda p: HitState.CKILL if p < pk else HitState.MISS
+
+
+def sample_bivariate_normal(mu_x, mu_y, sigma_x, sigma_y, size=1):
+    """
+    이변량 정규분포에서 무작위 (x, y) 샘플을 추출 (rho=0)
+    :param mu_x: X축 평균
+    :param mu_y: Y축 평균
+    :param sigma_x: X축 표준편차
+    :param sigma_y: Y축 표준편차
+    :param size: 추출할 샘플 수
+    :return: shape=(size, 2)의 numpy 배열
+    """
+    mean = [mu_x, mu_y]
+    cov = [[sigma_x**2, 0], [0, sigma_y**2]]  # ρ = 0 ⇒ 공분산 = 0
+    return np.random.multivariate_normal(mean, cov, size)
 
 
 class UnitType(Enum):
@@ -376,3 +392,363 @@ UNIT_SPECS = {  # TODO: unit ph_func, pk_func 추가
         speed_offroad_kmh=40,
     ),
 }
+
+curved_traj_weapon_data = {
+    "60mm_Mortar": {
+        "ballistics": [
+            {
+                "range_m": 1000,
+                "flight_time": 10,
+                "angle": 30,
+                "aim_error_x": 10,
+                "aim_error_r": 25,
+                "ballistic_error_x": 7,
+                "ballistic_error_r": 10,
+            },
+            {
+                "range_m": 2000,
+                "flight_time": 20,
+                "angle": 60,
+                "aim_error_x": 12,
+                "aim_error_r": 29,
+                "ballistic_error_x": 9,
+                "ballistic_error_r": 16,
+            },
+        ],
+        "lethal_area": [
+            {"angle": 30, "open": 180, "forest": 90, "urban": 90},
+            {"angle": 60, "open": 200, "forest": 100, "urban": 100},
+            {"angle": 90, "open": 220, "forest": 110, "urban": 110},
+        ],
+    },
+    "105mm_Howitzer": {
+        "ballistics": [
+            {
+                "range_m": 3000,
+                "flight_time": 18,
+                "angle": 40,
+                "aim_error_x": 15,
+                "aim_error_r": 35,
+                "ballistic_error_x": 12,
+                "ballistic_error_r": 18,
+            },
+            {
+                "range_m": 6000,
+                "flight_time": 30,
+                "angle": 36,
+                "aim_error_x": 18,
+                "aim_error_r": 50,
+                "ballistic_error_x": 14,
+                "ballistic_error_r": 26,
+            },
+            {
+                "range_m": 9000,
+                "flight_time": 40,
+                "angle": 32,
+                "aim_error_x": 20,
+                "aim_error_r": 65,
+                "ballistic_error_x": 16,
+                "ballistic_error_r": 34,
+            },
+            {
+                "range_m": 11000,
+                "flight_time": 50,
+                "angle": 30,
+                "aim_error_x": 22,
+                "aim_error_r": 80,
+                "ballistic_error_x": 18,
+                "ballistic_error_r": 40,
+            },
+        ],
+        "lethal_area": [
+            {"angle": 30, "open": 320, "forest": 160, "urban": 160},
+            {"angle": 60, "open": 340, "forest": 170, "urban": 170},
+            {"angle": 90, "open": 360, "forest": 180, "urban": 180},
+        ],
+    },
+    "122mm_SPG": {
+        "ballistics": [
+            {
+                "range_m": 5000,
+                "flight_time": 22,
+                "angle": 40,
+                "aim_error_x": 18,
+                "aim_error_r": 45,
+                "ballistic_error_x": 14,
+                "ballistic_error_r": 30,
+            },
+            {
+                "range_m": 10000,
+                "flight_time": 36,
+                "angle": 35,
+                "aim_error_x": 21,
+                "aim_error_r": 60,
+                "ballistic_error_x": 17,
+                "ballistic_error_r": 38,
+            },
+            {
+                "range_m": 15000,
+                "flight_time": 50,
+                "angle": 30,
+                "aim_error_x": 24,
+                "aim_error_r": 75,
+                "ballistic_error_x": 20,
+                "ballistic_error_r": 46,
+            },
+        ],
+        "lethal_area": [
+            {"angle": 30, "open": 380, "forest": 190, "urban": 190},
+            {"angle": 60, "open": 400, "forest": 200, "urban": 200},
+            {"angle": 90, "open": 420, "forest": 210, "urban": 210},
+        ],
+    },
+    "BM-21_MLRS": {
+        "ballistics": [
+            {
+                "range_m": 10000,
+                "flight_time": 28,
+                "angle": 50,
+                "aim_error_x": 30,
+                "aim_error_r": 90,
+                "ballistic_error_x": 25,
+                "ballistic_error_r": 45,
+            },
+            {
+                "range_m": 15000,
+                "flight_time": 38,
+                "angle": 45,
+                "aim_error_x": 35,
+                "aim_error_r": 120,
+                "ballistic_error_x": 28,
+                "ballistic_error_r": 60,
+            },
+            {
+                "range_m": 20000,
+                "flight_time": 48,
+                "angle": 40,
+                "aim_error_x": 40,
+                "aim_error_r": 150,
+                "ballistic_error_x": 31,
+                "ballistic_error_r": 75,
+            },
+        ],
+        "lethal_area": [
+            {"angle": 30, "open": 400, "forest": 200, "urban": 200},
+            {"angle": 60, "open": 420, "forest": 210, "urban": 210},
+            {"angle": 90, "open": 440, "forest": 220, "urban": 220},
+        ],
+    },
+}
+
+
+def interpolate_ballistics(weapon_name: str, target_range: float, weapon_data: dict):
+    entries = weapon_data.get(weapon_name, {}).get("ballistics", [])
+    if not entries:
+        raise ValueError(f"No ballistics data found for weapon: {weapon_name}")
+
+    # 정렬 보장 (range_m 기준)
+    entries = sorted(entries, key=lambda e: e["range_m"])
+
+    # 범위 밖 extrapolation 방지
+    if target_range <= entries[0]["range_m"]: #TODO: 사거리 안쪽은 보간 유무 결정
+        raise ValueError(f"Target out of range for weapon: {weapon_name}")
+    if target_range >= entries[-1]["range_m"]:
+        raise ValueError(f"Target out of range for weapon: {weapon_name}")
+
+    # 보간할 구간 찾기
+    for i in range(len(entries) - 1):
+        low = entries[i]
+        high = entries[i + 1]
+        if low["range_m"] <= target_range <= high["range_m"]:
+            ratio = (target_range - low["range_m"]) / (high["range_m"] - low["range_m"])
+            interpolated = {
+                "range_m": target_range,
+                "flight_time": low["flight_time"]
+                + ratio * (high["flight_time"] - low["flight_time"]),
+                "angle": low["angle"] + ratio * (high["angle"] - low["angle"]),
+                "aim_error_x": low["aim_error_x"]
+                + ratio * (high["aim_error_x"] - low["aim_error_x"]),
+                "aim_error_r": low["aim_error_r"]
+                + ratio * (high["aim_error_r"] - low["aim_error_r"]),
+                "ballistic_error_x": low["ballistic_error_x"]
+                + ratio * (high["ballistic_error_x"] - low["ballistic_error_x"]),
+                "ballistic_error_r": low["ballistic_error_r"]
+                + ratio * (high["ballistic_error_r"] - low["ballistic_error_r"]),
+            }
+            return interpolated
+
+    raise ValueError(
+        "Interpolation failed - this should never happen if data is valid."
+    )
+
+
+def interpolate_lethal_area(weapon_name: str, angle: float, weapon_data: dict):
+    entries = weapon_data.get(weapon_name, {}).get("lethal_area", [])
+    if not entries or len(entries) < 2:
+        raise ValueError(f"Not enough lethal area data for weapon: {weapon_name}")
+
+    # 정렬 (낙탄각 기준)
+    entries = sorted(entries, key=lambda e: e["angle"])
+
+    for i in range(len(entries) - 1):
+        low = entries[i]
+        high = entries[i + 1]
+
+        if low["angle"] <= angle <= high["angle"]:
+            ratio = (angle - low["angle"]) / (high["angle"] - low["angle"])
+        elif angle < entries[0]["angle"]:
+            low = entries[0]
+            high = entries[1]
+            ratio = (angle - low["angle"]) / (high["angle"] - low["angle"])
+        elif angle > entries[-1]["angle"]:
+            raise ValueError("Angle bigger than 90 degrees.")
+        else:
+            raise ValueError("Interpolation failed.")
+
+        return {
+            "angle": angle,
+            "open": low["open"] + ratio * (high["open"] - low["open"]),
+            "forest": low["forest"] + ratio * (high["forest"] - low["forest"]),
+            "urban": low["urban"] + ratio * (high["urban"] - low["urban"]),
+        }
+
+    # fallback, shouldn't hit this
+    raise ValueError("Interpolation failed.")
+
+
+def get_shell_landing_point(
+        target_coord: Coord, 
+        aim_error_x, 
+        aim_error_r, 
+        ballistic_error_x, 
+        ballistic_error_r
+        ): # TODO: 오차 계산에 좌표계 변환 고려 필요
+    """
+    포탄의 착탄 지점을 계산하는 함수
+    :param target_coord: 목표물의 좌표
+    :param aim_error_x: 조준 오차 (x축)
+    :param aim_error_r: 조준 오차 (y축)
+    :param ballistic_error_x: 포탄 궤적 오차 (x축)
+    :param ballistic_error_r: 포탄 궤적 오차 (y축)
+    :return: 포탄의 착탄 지점 (x, y)
+    """
+    aim_x, aim_y = sample_bivariate_normal(0, 0, aim_error_x, aim_error_r, size=1)[0]
+    ballistic_x, ballistic_y = sample_bivariate_normal(0, 0, ballistic_error_x, ballistic_error_r, size=1)[0]
+    return target_coord.x + aim_x + ballistic_x, target_coord.y + aim_y + ballistic_y
+
+
+def get_landing_data(
+    weapon_name: str,
+    target_coord: Coord,
+    target_distance: float,
+    target_environment: str,
+    ):
+    """
+    포탄의 궤적을 고려한 명중 확률을 계산하는 함수
+    :param weapon_name: 무기 이름
+    :param target_coord: 목표물의 좌표
+    :param target_distance: 목표물과의 거리
+    :param target_environment: 목표물의 환경 (open, forest, urban)
+    :return: 포탄의 착탄 지점 (x, y)과 치명적 반경
+    """
+    weapon_data = curved_traj_weapon_data.get(weapon_name)
+    if not weapon_data:
+        raise ValueError(f"No data found for weapon: {weapon_name}")
+
+    # 포탄의 궤적 데이터
+    lethal_area = weapon_data["lethal_area"]
+
+    interpolated_ballistic_data = interpolate_ballistics(
+        weapon_name, target_distance, curved_traj_weapon_data
+    )
+    # 포탄의 착탄 지점 계산
+    landing_x, landing_y = get_shell_landing_point(
+        target_coord,
+        interpolated_ballistic_data["aim_error_x"],
+        interpolated_ballistic_data["aim_error_r"],
+        interpolated_ballistic_data["ballistic_error_x"],
+        interpolated_ballistic_data["ballistic_error_r"],
+    )
+
+    lethal_area_data = interpolate_lethal_area(
+        weapon_name, interpolated_ballistic_data["angle"], curved_traj_weapon_data
+    )
+    if lethal_area_data[target_environment] is None:
+        raise ValueError(f"No lethal area data found for env: {target_environment}")
+    lethal_area = lethal_area_data[target_environment]
+    lethal_area_radius = math.sqrt(lethal_area / math.pi)  # 원형으로 가정
+
+    return landing_x, landing_y, lethal_area_radius
+
+
+def cookie_cutter_damage_func(
+    landing_distance: float,
+    lethal_area_radius: float,
+):
+    """
+    포탄의 착탄 지점과 목표물 간의 거리와 치명적 반경을 고려하여 피해를 계산하는 함수
+    :param landing_distance: 포탄의 착탄 지점과 목표물 간의 거리
+    :param lethal_area_radius: 치명적 반경
+    :return: 피해 확률
+    """
+    if landing_distance <= lethal_area_radius:
+        return 1.0 # 완전 파괴
+    else:
+        return 0  # 피해 없음
+
+
+def carlton_damage_func(
+    landing_distance: float,
+    lethal_area_radius: float,
+):
+    """
+    포탄의 착탄 지점과 목표물 간의 거리와 치명적 반경을 고려하여 피해를 계산하는 함수
+    :param landing_distance: 포탄의 착탄 지점과 목표물 간의 거리
+    :param lethal_area_radius: 치명적 반경
+    :return: 피해 확률
+    """
+    kill_or_wound_radius = lethal_area_radius * 4.47
+
+    if landing_distance > kill_or_wound_radius:
+        return 0.0  # 피해 없음
+    else:
+        return math.exp(-(landing_distance**2)/(lethal_area_radius**2))  # 피해 없음
+
+
+def gaussian_damage_func(
+    landing_distance: float,
+    b: float = 1.0,
+):
+    """
+    포탄의 착탄 지점과 목표물 간의 거리와 치명적 반경을 고려하여 피해를 계산하는 함수
+    :param landing_distance: 포탄의 착탄 지점과 목표물 간의 거리
+    :param b: 가우시안 분포의 표준편차
+    :return: 피해 확률
+    """
+    return math.exp(-(landing_distance**2)/(2*(b**2)))  # 피해 없음
+
+
+def exponential_damage_func(
+    landing_distance: float,
+    b: float = 1.0,
+):
+    """
+    포탄의 착탄 지점과 목표물 간의 거리와 치명적 반경을 고려하여 피해를 계산하는 함수
+    :param landing_distance: 포탄의 착탄 지점과 목표물 간의 거리
+    :param b: 지수 분포의 매개변수
+    :return: 피해 확률
+    """
+    return math.exp(-landing_distance / b)  # 피해 없음
+
+
+if __name__ == "__main__":
+    # # Test the interpolation function
+    # weapon_name = "60mm_Mortar"
+    # target_range = 1500
+    # interpolated_data = interpolate_ballistics(
+    #     weapon_name, target_range, curved_traj_weapon_data
+    # )
+    # print(f"Interpolated data for {weapon_name} at {target_range}m: {interpolated_data}")
+    print(interpolate_lethal_area("BM-21_MLRS", 35, curved_traj_weapon_data))  # 보간
+    print(interpolate_lethal_area("BM-21_MLRS", 20, curved_traj_weapon_data))  # 하한 외삽
+    # print(interpolate_lethal_area("BM-21_MLRS", 100, curved_traj_weapon_data))
