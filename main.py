@@ -6,10 +6,10 @@ import random
 import signal
 import sys
 from modules.history import History
-from modules.map import Map, placement_zones
+from modules.map import Map, placement_zones, MAX_TIME, TIME_STEP, MAP_WIDTH, MAP_HEIGHT
 from modules.timeline import TimelineEvent, TIMELINE
 from modules.troop import Troop, TroopList, generate_initial_troops, update_troop_location, terminate
-from modules.unit_definitions import UnitType, UnitComposition, MAX_TIME, TIME_STEP
+from modules.unit_definitions import UnitType, UnitComposition
 from modules.utils import initialize_folders
 
 
@@ -80,7 +80,7 @@ def main():
     current_time = 0.0
     hist_record_time = 0.0
     history = History(time=current_time)
-    battle_map = Map(100, 100)  # Create a map of size 100x100
+    battle_map = Map(MAP_WIDTH, MAP_HEIGHT)  # Create a map of size 100x100
 
     timeline_index = 0
 
@@ -96,7 +96,7 @@ def main():
             if current_time == event.time:
                 print(f"[{event.time_str}] TIMELINE EVENT: {event.description}")
                 timeline_index += 1
-                
+
         if hist_record_time==1.0:
             history.add_to_status_data(troop_list)  
             hist_record_time = 0.0

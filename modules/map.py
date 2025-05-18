@@ -2,15 +2,21 @@
 
 
 import numpy as np
-from .unit_definitions import TIME_STEP
 
+
+# MAX_TIME = 100.0 # 최대 시뮬레이션 시간 (분 단위) #for testingfrom typing import List, Tuple
+MAX_TIME = 2880.0  # 최대 시뮬레이션 시간 (분 단위) #TODO: 복구 요망
+# TIME_STEP = 0.01 # 시뮬레이션 시간 간격 (분 단위)
+TIME_STEP = 1.0
+MAP_WIDTH = 30  # 맵의 너비
+MAP_HEIGHT = 30  # 맵의 높이
 
 # Blueprint: 카테고리별로 영역(사각형)과 소속태그를 매핑
 # placement_zones[카테고리][키] = (x_range, y_range, affiliation)
 placement_zones = {
     "TANK": {
-        "blue": ((0, 30), (45, 55), "FixedDefense"),
-        "red_reserve": ((70, 100), (45, 55), "Reserve"),
+        "blue": ((0, 10), (0, 30), "FixedDefense"),
+        "red_reserve": ((20, 30), (0, 30), "Reserve"),
         # "red_E1":       ((0, 10),  (40, 50), "E1"),
         # "red_E2":       ((0, 10),  (50, 60), "E2"),
         # "red_E3":       ((0, 10),  (60, 70), "E3"),
@@ -32,17 +38,17 @@ placement_zones = {
     #     "red_E3":       ((2,  8),  (62, 68), "E3"),
     #     "red_E4":       ((2,  8),  (72, 78), "E4"),
     # },
-    # "ARTILLERY": {
-    #     "blue":         ((15, 17), (48, 52), "FixedDefense"),
-    #     "red_reserve":  ((85, 87), (48, 52), "Reserve"),
-    #     "red_E1":       ((3,  7),  (43, 47), "E1"),
-    #     "red_E2":       ((3,  7),  (53, 57), "E2"),
-    #     "red_E3":       ((3,  7),  (63, 67), "E3"),
-    #     "red_E4":       ((3,  7),  (73, 77), "E4"),
-    # },
+    "ARTILLERY": {
+        "blue": ((0, 10), (0, 30), "FixedDefense"),
+        "red_reserve": ((20, 30), (0, 30), "Reserve"),
+        # "red_E1":       ((3,  7),  (43, 47), "E1"),
+        # "red_E2":       ((3,  7),  (53, 57), "E2"),
+        # "red_E3":       ((3,  7),  (63, 67), "E3"),
+        # "red_E4":       ((3,  7),  (73, 77), "E4"),
+    },
     "AT_WEAPON": {
-        "blue": ((0, 30), (45, 55), "FixedDefense"),
-        "red_reserve": ((70, 100), (45, 55), "Reserve"),
+        "blue": ((0, 10), (0, 30), "FixedDefense"),
+        "red_reserve": ((20, 30), (0, 30), "Reserve"),
         # "red_E1":       ((4,  6),  (44, 46), "E1"),
         # "red_E2":       ((4,  6),  (54, 56), "E2"),
         # "red_E3":       ((4,  6),  (64, 66), "E3"),

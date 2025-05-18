@@ -8,10 +8,6 @@ import math
 from .map import Coord
 
 
-# MAX_TIME = 100.0 # 최대 시뮬레이션 시간 (분 단위) #for testingfrom typing import List, Tuple
-MAX_TIME = 2880.0  # 최대 시뮬레이션 시간 (분 단위) #TODO: 복구 요망
-# TIME_STEP = 0.01 # 시뮬레이션 시간 간격 (분 단위)
-TIME_STEP = 1.0
 BLUE_HIT_PROB_BUFF = 0.8  # BLUE 진영의 명중 확률 버프
 
 
@@ -52,6 +48,56 @@ def simple_pk_func(pk):
     return lambda p: HitState.CKILL if p < pk else HitState.MISS
 
 
+def indirect_pk_func():
+    return lambda p, pk: HitState.CKILL if p < pk else HitState.MISS
+
+
+def cookie_cutter_damage_func():
+    """
+    포탄의 착탄 지점과 목표물 간의 거리와 치명적 반경을 고려하여 피해를 계산하는 함수
+    :return: 피해 확률
+    """
+    return lambda landing_distance, lethal_area_radius: (
+        1.0 if landing_distance <= lethal_area_radius else 0.0
+    )  # 피해 없음
+
+
+def carlton_damage_func():
+    """
+    포탄의 착탄 지점과 목표물 간의 거리와 치명적 반경을 고려하여 피해를 계산하는 함수
+    :return: 피해 확률
+    """
+    return lambda landing_distance, lethal_area_radius: (
+        math.exp(-(landing_distance**2) / (lethal_area_radius**2))
+        if landing_distance <= lethal_area_radius * 4.47
+        else 0.0
+    )  # 피해 없음
+
+
+def gaussian_damage_func(
+    b: float = 1.0,
+):
+    """
+    포탄의 착탄 지점과 목표물 간의 거리와 치명적 반경을 고려하여 피해를 계산하는 함수
+    :param b: 가우시안 분포의 표준편차
+    :return: 피해 확률
+    """
+    return lambda landing_distance, lethal_area_radius: math.exp(
+        -(landing_distance**2) / (2 * (b**2))
+    )
+
+
+def exponential_damage_func(
+    b: float = 1.0,
+):
+    """
+    포탄의 착탄 지점과 목표물 간의 거리와 치명적 반경을 고려하여 피해를 계산하는 함수
+    :param b: 지수 분포의 매개변수
+    :return: 피해 확률
+    """
+    return lambda landing_distance, lethal_area_radius: math.exp(-landing_distance / b)
+
+
 def sample_bivariate_normal(mu_x, mu_y, sigma_x, sigma_y, size=1):
     """
     이변량 정규분포에서 무작위 (x, y) 샘플을 추출 (rho=0)
@@ -76,15 +122,44 @@ class UnitType(Enum):
     ATGM = "atgm"  # 대전차미사일
     RPG = "rpg"  # 휴대용 대전차 로켓포
     RECOILLESS = "recoilless"  # 무반동포
-    INFANTRY_AT = "infantry_at"  # 보병 대전차
+    # INFANTRY_AT = "infantry_at"  # 보병 대전차
     INFANTRY = "infantry"  # 보병
     SUPPLY = "supply"  # 보급차량
     VEHICLE = "vehicle"  # 차량
     APC = "apc"  # 장갑차
-    DIR_FIRE_UNIT = ["tank", "atgm", "infantry_at"]
-    INDIRECT_FIRE_UNIT = ["mortar", "howitzer", "spg", "mlrs"]
-    ANTI_TANK = ["atgm", "recoilless", "rpg"]
+    # DIR_FIRE_UNIT = ["tank", "atgm", "infantry_at"]
+    # INDIRECT_FIRE_UNIT = ["mortar", "howitzer", "spg", "mlrs"]
+    # ANTI_TANK = ["atgm", "recoilless", "rpg"]
 
+    @classmethod
+    def is_anti_tank(cls, unit_type):
+        return unit_type in {
+            cls.ATGM,
+            cls.RPG,
+            cls.RECOILLESS,
+        }
+    
+    @classmethod
+    def is_direct_fire(cls, unit_type):
+        return unit_type in {
+            cls.TANK,
+            cls.ATGM,
+            cls.RPG,
+            cls.RECOILLESS,
+        }
+    
+    @classmethod
+    def is_indirect_fire(cls, unit_type):
+        return unit_type in {
+            cls.MORTAR,
+            cls.HOWITZER,
+            cls.SPG,
+            cls.MLRS,
+        }
+
+
+# class UnitCategory(Enum):
+#     DIRECT_FIRE = "direct_fire"  # 직사화력
 
 class UnitStatus(Enum):
     ALIVE = "alive"  # 살아있음
@@ -138,40 +213,40 @@ class HitState(Enum):
 
 
 # 유닛 세부 정보를 담을 구조체
-UnitCategory = namedtuple("UnitCategory", ["blue", "red"])
+TroopCategory = namedtuple("TroopCategory", ["blue", "red"])
 
 
 class UnitComposition(Enum):
-    TANK = UnitCategory(blue={"Sho't_Kal": 170}, red={"T-55": 300, "T-62": 200})
+    TANK = TroopCategory(blue={"Sho't_Kal": 10}, red={"T-55": 10, "T-62": 10})
 
-    AT_WEAPON = UnitCategory(
-        blue={"BGM-71_TOW": 12, "106mm_M40_Recoilless_Rifle": 36, "M72_LAW": 12},
-        red={"9M14_Malyutka": 54, "107mm_B-11_Recoilless_Rifle": 36, "RPG-7": 54},
-    )
+    # AT_WEAPON = TroopCategory(
+    #     blue={"BGM-71_TOW": 12, "106mm_M40_Recoilless_Rifle": 36, "M72_LAW": 12},
+    #     red={"9M14_Malyutka": 54, "107mm_B-11_Recoilless_Rifle": 36, "RPG-7": 54},
+    # )
 
-    # TANK = UnitCategory(
+    # TANK = TroopCategory(
     #     blue={"Sho't_Kal": 170},
     #     red={"T-55": 300, "T-62": 200}
     # )
 
-    # # APC = UnitCategory( #TODO: 장갑차 추가, 사격 확률
+    # # APC = TroopCategory( #TODO: 장갑차 추가, 사격 확률
     # #     blue={"M113": 20},
     # #     red={"BMP/BTR": 200}
     # # )
-    # # INFANTRY = UnitCategory(    #TODO: 보병 추가
+    # # INFANTRY = TroopCategory(    #TODO: 보병 추가
     # #     blue={"Golani×2 + ATGM중대": 850},
     # #     red={"보병여단3 + 기계화여단3": 4800}
     # # )
-    # ARTILLERY = UnitCategory(
-    #     blue={"60mm_Mortar": 12, "105mm_Howitzer": 20},
-    #     red={"122mm_SPG": 200, "BM-21_MLRS": 200}  # "발" 단위는 맥락상 자주포 수량과 통합 처리
-    # )
+    ARTILLERY = TroopCategory(
+        blue={"60mm_Mortar": 12, "105mm_Howitzer": 20},
+        red={"122mm_SPG": 200, "BM-21_MLRS": 200}  # "발" 단위는 맥락상 자주포 수량과 통합 처리
+    )
 
-    # AT_WEAPON = UnitCategory(
+    # AT_WEAPON = TroopCategory(
     #     blue={"BGM-71_TOW": 12, "106mm_M40_Recoilless_Rifle": 36, "M72_LAW": 12},
     #     red={"9M14_Malyutka": 54, "107mm_B-11_Recoilless_Rifle": 36, "RPG-7": 54}
     # )
-    # SUPPLY = UnitCategory(
+    # SUPPLY = TroopCategory(
     #     blue={"Blue_Supply_Truck": 40},
     #     red={"Red_Supply_Truck": 60}
     # )
@@ -186,6 +261,7 @@ class UnitSpec:
         range_km,
         ph_func,
         pk_func,
+        damage_func=None,
         target_delay_func=constant_func(2.0),
         fire_time_func=constant_func(1.0),
         speed_road_kmh=100,
@@ -197,6 +273,7 @@ class UnitSpec:
         self.range_km = range_km
         self.ph_func = ph_func  # A function that returns hit probability
         self.pk_func = pk_func  # function that returns HitState
+        self.damage_func = damage_func  # function that returns damage probability
         self.target_delay_func = target_delay_func
         self.fire_time_func = fire_time_func
 
@@ -242,32 +319,36 @@ UNIT_SPECS = {  # TODO: unit ph_func, pk_func 추가
         team="blue",
         unit_type=UnitType.MORTAR,
         range_km=2.0,
-        ph_func=exp_decay(2.0, 0.6, 2.0),
-        pk_func="exp(-r/2.0)",
+        ph_func=None,
+        pk_func=indirect_pk_func(),
+        damage_func=gaussian_damage_func(b=1.0),
     ),
     "105mm_Howitzer": UnitSpec(
         name="105mm_Howitzer",
         team="blue",
         unit_type=UnitType.HOWITZER,
         range_km=11.0,
-        ph_func=exp_decay(11.0, 0.8, 11.0),
-        pk_func="exp(-r/11.0)",
+        ph_func=None,
+        pk_func=indirect_pk_func(),
+        damage_func=cookie_cutter_damage_func(),
     ),
     "122mm_SPG": UnitSpec(
         name="122mm_SPG",
         team="red",
         unit_type=UnitType.SPG,
         range_km=15.0,
-        ph_func=exp_decay(10.0, 0.75, 10.0),
-        pk_func="exp(-r/10.0)",
+        ph_func=None,
+        pk_func=indirect_pk_func(),
+        damage_func=gaussian_damage_func(b=1.0),
     ),
     "BM-21_MLRS": UnitSpec(
         name="BM-21_MLRS",
         team="red",
         unit_type=UnitType.MLRS,
         range_km=20.0,
-        ph_func=exp_decay(20.0, 0.85, 20.0),
-        pk_func="exp(-r/20.0)",
+        ph_func=None,
+        pk_func=indirect_pk_func(),
+        damage_func=exponential_damage_func(b=1.0),
     ),
     "BGM-71_TOW": UnitSpec(
         name="BGM-71_TOW",
@@ -551,7 +632,8 @@ def interpolate_ballistics(weapon_name: str, target_range: float, weapon_data: d
 
     # 범위 밖 extrapolation 방지
     if target_range <= entries[0]["range_m"]: #TODO: 사거리 안쪽은 보간 유무 결정
-        raise ValueError(f"Target out of range for weapon: {weapon_name}")
+        return entries[0]
+        # raise ValueError(f"Target out of range for weapon: {weapon_name}")
     if target_range >= entries[-1]["range_m"]:
         raise ValueError(f"Target out of range for weapon: {weapon_name}")
 
@@ -641,7 +723,7 @@ def get_landing_data(
     weapon_name: str,
     target_coord: Coord,
     target_distance: float,
-    target_environment: str,
+    target_environment: str = "open",
     ):
     """
     포탄의 궤적을 고려한 명중 확률을 계산하는 함수
@@ -679,66 +761,6 @@ def get_landing_data(
     lethal_area_radius = math.sqrt(lethal_area / math.pi)  # 원형으로 가정
 
     return landing_x, landing_y, lethal_area_radius
-
-
-def cookie_cutter_damage_func(
-    landing_distance: float,
-    lethal_area_radius: float,
-):
-    """
-    포탄의 착탄 지점과 목표물 간의 거리와 치명적 반경을 고려하여 피해를 계산하는 함수
-    :param landing_distance: 포탄의 착탄 지점과 목표물 간의 거리
-    :param lethal_area_radius: 치명적 반경
-    :return: 피해 확률
-    """
-    if landing_distance <= lethal_area_radius:
-        return 1.0 # 완전 파괴
-    else:
-        return 0  # 피해 없음
-
-
-def carlton_damage_func(
-    landing_distance: float,
-    lethal_area_radius: float,
-):
-    """
-    포탄의 착탄 지점과 목표물 간의 거리와 치명적 반경을 고려하여 피해를 계산하는 함수
-    :param landing_distance: 포탄의 착탄 지점과 목표물 간의 거리
-    :param lethal_area_radius: 치명적 반경
-    :return: 피해 확률
-    """
-    kill_or_wound_radius = lethal_area_radius * 4.47
-
-    if landing_distance > kill_or_wound_radius:
-        return 0.0  # 피해 없음
-    else:
-        return math.exp(-(landing_distance**2)/(lethal_area_radius**2))  # 피해 없음
-
-
-def gaussian_damage_func(
-    landing_distance: float,
-    b: float = 1.0,
-):
-    """
-    포탄의 착탄 지점과 목표물 간의 거리와 치명적 반경을 고려하여 피해를 계산하는 함수
-    :param landing_distance: 포탄의 착탄 지점과 목표물 간의 거리
-    :param b: 가우시안 분포의 표준편차
-    :return: 피해 확률
-    """
-    return math.exp(-(landing_distance**2)/(2*(b**2)))  # 피해 없음
-
-
-def exponential_damage_func(
-    landing_distance: float,
-    b: float = 1.0,
-):
-    """
-    포탄의 착탄 지점과 목표물 간의 거리와 치명적 반경을 고려하여 피해를 계산하는 함수
-    :param landing_distance: 포탄의 착탄 지점과 목표물 간의 거리
-    :param b: 지수 분포의 매개변수
-    :return: 피해 확률
-    """
-    return math.exp(-landing_distance / b)  # 피해 없음
 
 
 if __name__ == "__main__":

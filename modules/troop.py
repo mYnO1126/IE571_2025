@@ -4,8 +4,8 @@
 import math
 import numpy as np
 import random
-from .map import Coord, Velocity, Map
-from .unit_definitions import UnitStatus, UnitType, UnitComposition, HitState, UNIT_SPECS, MAX_TIME, TIME_STEP, BLUE_HIT_PROB_BUFF
+from .map import Coord, Velocity, Map, MAX_TIME, TIME_STEP
+from .unit_definitions import UnitStatus, UnitType, UnitComposition, HitState, UNIT_SPECS, BLUE_HIT_PROB_BUFF, get_landing_data
 
 
 class Troop:  # Troop class to store troop information and actions
@@ -21,6 +21,7 @@ class Troop:  # Troop class to store troop information and actions
         self.range_km = spec.range_km
         self.ph_func = spec.ph_func
         self.pk_func = spec.pk_func
+        self.damage_func = spec.damage_func
         self.target_delay_func = spec.target_delay_func
         self.fire_time_func = spec.fire_time_func
 
@@ -29,6 +30,7 @@ class Troop:  # Troop class to store troop information and actions
         self.id = self.assign_id()
         self.next_fire_time = 0.0  # Initial fire time
         self.target = None
+        self.target_coord = None
         self.alive = True
         self.coord = coord  # Coordinate object to store (x, y, z) coordinates
         self.velocity = Velocity()  # Placeholder for velocity (x, y, z)
@@ -114,7 +116,7 @@ class Troop:  # Troop class to store troop information and actions
         return Velocity(ux * move, uy * move, 0)
 
     # ---- 역할별 전략: 유형별 타겟팅 로직 ----
-    def filter_priority(self, cand_list):
+    def filter_priority(self, cand_list): # TODO: unit type 간소화 가능
         if self.type == UnitType.TANK:
             return sorted(
                 cand_list,
@@ -137,7 +139,7 @@ class Troop:  # Troop class to store troop information and actions
             UnitType.ATGM,
             UnitType.RPG,
             UnitType.RECOILLESS,
-            UnitType.INFANTRY_AT,
+            # UnitType.INFANTRY_AT,
         }:
             at_targets = [
                 c for c in cand_list if c[0].type in {UnitType.TANK, UnitType.APC}
@@ -173,7 +175,7 @@ class Troop:  # Troop class to store troop information and actions
 
     def assign_target(
         self, current_time, enemy_list
-    ):  # TODO: Implement target assignment logic
+    ):  # TODO: Implement target assignment logic, indirect fire logic
         # 밤 시간대: 19:00 ~ 06:00
         is_night = 360 <= current_time % 1440 <= 1080
 
@@ -229,22 +231,35 @@ class Troop:  # Troop class to store troop information and actions
             return
 
         distance = self.get_distance(self.target)
+        if distance > self.range_km:  #TODO: 사거리 제한
+            self.next_fire_time = round(current_time + self.get_t_f(), 2)
+            return
         result = HitState.MISS
         hit_rand_var = np.random.rand()
         kill_rand_var = np.random.rand()
 
-        # if self.type in UnitType.DIR_FIRE_UNIT:
-        ph = self.ph_func(self.get_distance(self.target))
-        # 야간 명중률 보정 (19:00 ~ 06:00 = 360~1080분)
-        if 360 <= current_time % 1440 <= 1080:
-            ph *= 0.8  # 20% 감소
+        if UnitType.is_indirect_fire(self.type):
+            landing_x, landing_y, lethal_r = get_landing_data(self.name, self.target.coord, distance)
+            landing_dist = math.sqrt(
+                (self.target.coord.x - landing_x) ** 2
+                + (self.target.coord.y - landing_y) ** 2
+            )
+            pk = self.damage_func(landing_dist, lethal_r)
+            result = self.pk_func(kill_rand_var, pk)
 
-        if self.target.team == "blue":
-            ph = ph * BLUE_HIT_PROB_BUFF
-        if ph < hit_rand_var:
-            result = self.pk_func(kill_rand_var)
         else:
-            result = HitState.MISS
+            # if self.type in UnitType.DIR_FIRE_UNIT:
+            ph = self.ph_func(self.get_distance(self.target))
+            # 야간 명중률 보정 (19:00 ~ 06:00 = 360~1080분)
+            if 360 <= current_time % 1440 <= 1080:
+                ph *= 0.8  # 20% 감소
+
+            if self.target.team == "blue":
+                ph = ph * BLUE_HIT_PROB_BUFF
+            if ph > hit_rand_var:
+                result = self.pk_func(kill_rand_var)
+            else:
+                result = HitState.MISS
 
         # elif self.type in UnitType.INDIRECT_FIRE_UNIT:
         #     ph = self.ph_func(self.get_distance(self.target))

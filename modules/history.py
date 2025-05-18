@@ -4,6 +4,7 @@ import pandas as pd
 import matplotlib.pyplot as plt
 from .unit_definitions import UnitType
 from .troop import Troop, TroopList
+from .map import MAP_WIDTH, MAP_HEIGHT
 
 class History:  # Store history of troop actions and troop status
     def __init__(self, time):
@@ -125,8 +126,8 @@ class History:  # Store history of troop actions and troop status
                 s=30,
             )
         plt.title(f"Troop Positions at T={current_time:.0f} min")
-        plt.xlim(0, 100)
-        plt.ylim(0, 100)
+        plt.xlim(0, MAP_WIDTH)
+        plt.ylim(0, MAP_HEIGHT)
         plt.xlabel("X")
         plt.ylabel("Y")
         plt.grid(True)
