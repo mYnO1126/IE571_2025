@@ -3,6 +3,7 @@
 import pandas as pd
 import matplotlib.pyplot as plt
 from .unit_definitions import UnitType
+from .troop import Troop, TroopList
 
 class History:  # Store history of troop actions and troop status
     def __init__(self, time):
@@ -21,8 +22,9 @@ class History:  # Store history of troop actions and troop status
             raise ValueError("Time cannot be set to a past value.")
         self.current_time = time
 
-    def init_status_data(self, troop_list):  # initialize status data
-        for troop in troop_list:
+    def init_status_data(self, troop_list: TroopList):  # initialize status data
+        troops = troop_list.troops
+        for troop in troops:
             if f"{troop.id}_status" not in self.status_data:
                 self.status_data[f"{troop.id}_status"] = []
                 self.status_data[f"{troop.id}_target"] = []
@@ -36,18 +38,30 @@ class History:  # Store history of troop actions and troop status
             [self.current_time, shooter, type_, target, target_type, result]
         )
 
-    def add_to_status_data(self, troop_list):  # add to status data
-        self.status_data["time"].append(self.current_time)
-        for troop in troop_list:
-            self.status_data[f"{troop.id}_status"].append(troop.status.value)
-            self.status_data[f"{troop.id}_target"].append(
-                troop.target.id if troop.target else None
-            )
-            self.status_data[f"{troop.id}_fire_time"].append(
-                troop.next_fire_time if troop.alive else None
-            )
+    def add_to_status_data(self, troop_list: TroopList):  # add to status data
+        troops = troop_list.troops
+        troop_ids = troop_list.troop_ids
 
-        for troop in troop_list:
+        self.status_data["time"].append(self.current_time)
+        troop_dict = {t.id: t for t in troops}
+        s_data = self.status_data
+
+        for tid in troop_ids:
+            status_key = s_data[f"{tid}_status"]
+            target_key = s_data[f"{tid}_target"]
+            fire_key = s_data[f"{tid}_fire_time"]
+
+            troop = troop_dict.get(tid)
+            if troop:
+                status_key.append(troop.status.value)
+                target_key.append(troop.target.id if troop.target else None)
+                fire_key.append(troop.next_fire_time if troop.alive else None)
+            else:
+                status_key.append("destroyed")
+                target_key.append(None)
+                fire_key.append(None)
+
+        for troop in troops:
             if troop.alive:
                 self.visualization_data["time"].append(self.current_time)
                 self.visualization_data["unit"].append(troop.id)

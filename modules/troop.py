@@ -3,8 +3,9 @@
 
 import math
 import numpy as np
+import random
 from .map import Coord, Velocity, Map
-from .unit_definitions import UnitStatus, UnitType, HitState, UNIT_SPECS, TIME_STEP, BLUE_HIT_PROB_BUFF
+from .unit_definitions import UnitStatus, UnitType, UnitComposition, HitState, UNIT_SPECS, MAX_TIME, TIME_STEP, BLUE_HIT_PROB_BUFF
 
 
 class Troop:  # Troop class to store troop information and actions
@@ -34,6 +35,9 @@ class Troop:  # Troop class to store troop information and actions
         self.status = UnitStatus.ALIVE  # Placeholder for unit status
         self.ammo = 100  # ammo level (0-100%)
         self.supply = 100  # supply level (0-100%)
+
+    def dead(self):
+        del self  # Explicitly delete the object
 
     @classmethod
     def batch_create(cls, category, side, x_range, y_range, affiliation):
@@ -80,8 +84,36 @@ class Troop:  # Troop class to store troop information and actions
     def get_t_f(self):
         return self.fire_time_func(0) if self.target else 0
 
-        # ---- 역할별 전략: 유형별 타겟팅 로직 ----
+    def compute_velocity(
+        self, dest: Coord, battle_map: Map, current_time: float
+    ) -> Velocity:
+        # 1) 기본 속도 km/h→km/min
+        on_road = battle_map.is_road(self.coord.x, self.coord.y)
+        base_speed = (
+            self.spec.speed_road_kmh if on_road else self.spec.speed_offroad_kmh
+        ) / 60
 
+        # 2) 지형 가중치
+        terrain_factor = battle_map.movement_factor(self.coord.x, self.coord.y)
+
+        # 3) 낮/밤 가중치 (19:00–06:00 야간엔 50% 느려짐)
+        hour = int((13 * 60 + 55 + current_time) // 60) % 24
+        daynight = 1.0 if 6 <= hour < 19 else 1.5
+
+        # 4) 실제 per-min 이동량
+        speed = base_speed / terrain_factor / daynight
+
+        # 5) 방향 단위 벡터
+        dx, dy = dest.x - self.coord.x, dest.y - self.coord.y
+        dist = math.hypot(dx, dy)
+        if dist == 0:
+            return Velocity(0, 0, 0)
+        ux, uy = dx / dist, dy / dist
+
+        move = speed * TIME_STEP
+        return Velocity(ux * move, uy * move, 0)
+
+    # ---- 역할별 전략: 유형별 타겟팅 로직 ----
     def filter_priority(self, cand_list):
         if self.type == UnitType.TANK:
             return sorted(
@@ -232,7 +264,6 @@ class Troop:  # Troop class to store troop information and actions
         if self.target.type == UnitType.TANK:
             if result == HitState.CKILL:
                 self.target.alive = False
-                self.target.status = UnitStatus.DESTROYED
                 self.target = None
                 self.assign_target(current_time, enemy_list)
                 return
@@ -262,31 +293,120 @@ class Troop:  # Troop class to store troop information and actions
                 self.assign_target(current_time, enemy_list)
                 return
 
-    def compute_velocity(
-        self, dest: Coord, battle_map: Map, current_time: float
-    ) -> Velocity:
-        # 1) 기본 속도 km/h→km/min
-        on_road = battle_map.is_road(self.coord.x, self.coord.y)
-        base_speed = (
-            self.spec.speed_road_kmh if on_road else self.spec.speed_offroad_kmh
-        ) / 60
 
-        # 2) 지형 가중치
-        terrain_factor = battle_map.movement_factor(self.coord.x, self.coord.y)
+class TroopList:  # Troop list to manage all troops
+    def __init__(self, troop_list):
+        self.troops = []
+        self.blue_troops = []
+        self.red_troops = []
+        self.troop_ids = []
+        for troop in troop_list:
+            self.troops.append(troop)
+            if troop.id in self.troop_ids:
+                print(f"[ERROR] Duplicate id: {troop.id}")
+                continue
+            else:
+                self.troop_ids.append(troop.id)            
+            if troop.team == "blue":
+                self.blue_troops.append(troop)
+            elif troop.team == "red":
+                self.red_troops.append(troop)
+        self.assign_targets(0.0)
 
-        # 3) 낮/밤 가중치 (19:00–06:00 야간엔 50% 느려짐)
-        hour = int((13 * 60 + 55 + current_time) // 60) % 24
-        daynight = 1.0 if 6 <= hour < 19 else 1.5
+    def remove_troop(self, troop: Troop):
+        if troop in self.troops:
+            self.troops.remove(troop)
+            if troop.team == "blue":
+                self.blue_troops.remove(troop)
+            elif troop.team == "red":
+                self.red_troops.remove(troop)
 
-        # 4) 실제 per-min 이동량
-        speed = base_speed / terrain_factor / daynight
+    def remove_dead_troops(self):
+        for troop in self.troops:
+            if not troop.alive:
+                self.remove_troop(troop)
+                troop.dead()
 
-        # 5) 방향 단위 벡터
-        dx, dy = dest.x - self.coord.x, dest.y - self.coord.y
-        dist = math.hypot(dx, dy)
-        if dist == 0:
-            return Velocity(0, 0, 0)
-        ux, uy = dx / dist, dy / dist
+    def assign_targets(self, current_time):
+        for troop in self.troops:
+            if troop.alive:
+                if troop.team == "blue":
+                    troop.assign_target(current_time, self.red_troops)
+                elif troop.team == "red":
+                    troop.assign_target(current_time, self.blue_troops)
 
-        move = speed * TIME_STEP
-        return Velocity(ux * move, uy * move, 0)
+    def get_enemy_list(self, troop):
+        if troop.team == "blue":
+            return self.red_troops
+        elif troop.team == "red":
+            return self.blue_troops
+        else:
+            print(f"[ERROR] wrong team affiliation: {troop.team}")
+            return None
+
+    def get_next_battle_time(self):
+        next_battle_time = float("inf")
+        for troop in self.troops:
+            if troop.alive:
+                if troop.next_fire_time < next_battle_time:
+                    next_battle_time = troop.next_fire_time
+        return next_battle_time
+
+    def shuffle_troops(self):
+        random.shuffle(self.troops)
+        random.shuffle(self.blue_troops)
+        random.shuffle(self.red_troops)
+
+    def fire(self, current_time, history):
+        self.shuffle_troops()
+        for troop in self.troops: 
+            if troop.next_fire_time <= current_time:
+                enemies = self.get_enemy_list(troop)
+                troop.fire(current_time, enemies, history)
+
+
+def generate_initial_troops(placement_zones):
+    troop_list = []
+    for category in UnitComposition:
+        # BLUE 고정 방어진지
+        xr, yr, aff = placement_zones[category.name]["blue"]
+        troop_list += Troop.batch_create(category, "blue", xr, yr, aff)
+
+        # RED Reserve + E1~E4
+        # for key in ["red_reserve","red_E1","red_E2","red_E3","red_E4"]:
+        for key in ["red_reserve"]:
+            xr, yr, aff = placement_zones[category.name][key]
+            troop_list += Troop.batch_create(category, "red", xr, yr, aff)
+
+    return troop_list
+
+
+def update_troop_location(troop_list, battle_map, current_time):
+    for troop in troop_list:
+        if not troop.alive:
+            continue
+        dest = troop.target.coord if troop.target else troop.coord
+        v = troop.compute_velocity(dest, battle_map, current_time)
+        troop.update_velocity(v)
+        troop.update_coord()
+        if not (
+            0 <= troop.coord.x < battle_map.width
+            and 0 <= troop.coord.y < battle_map.height
+        ):
+            troop.alive = False
+
+
+def terminate(troop_list:TroopList, current_time):
+    # Check if all troops are dead or if the time limit is reached
+    if current_time >= MAX_TIME:
+        return True
+
+    if not any(t.alive for t in troop_list.blue_troops) or not any(t.alive for t in troop_list.red_troops):
+        return True
+
+    for troop in troop_list.troops:
+        if troop.type == UnitType.TANK and troop.alive:
+            return False
+        if troop.type == UnitType.APC and troop.alive:
+            return False
+    return True

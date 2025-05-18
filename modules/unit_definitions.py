@@ -172,8 +172,8 @@ class UnitSpec:
         pk_func,
         target_delay_func=constant_func(2.0),
         fire_time_func=constant_func(1.0),
-        speed_road_kmh=1000,
-        speed_offroad_kmh=1000,
+        speed_road_kmh=100,
+        speed_offroad_kmh=100,
     ):
         self.name = name
         self.team = team  # "blue" or "red"

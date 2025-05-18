@@ -11,7 +11,7 @@ class TimelineEvent:  # Timeline event types
         self.t_f = t_f  # Time of fire
 
 
-timeline = [
+TIMELINE = [
     TimelineEvent(0, "13:55", "BLUE 전차70대 방어진지 배치 명령", 0.5, 1),
     TimelineEvent(5, "14:00", "BLUE 모든 소대 방어진지 점검 완료", None, None),
     TimelineEvent(30, "14:25", "RED(E1) 교량전차·보병 투입 시도", 1, 1),
