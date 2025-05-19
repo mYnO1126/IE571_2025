@@ -88,7 +88,7 @@ class Troop:  # Troop class to store troop information and actions
 
     def compute_velocity(
         self, dest: Coord, battle_map: Map, current_time: float
-    ) -> Velocity:
+    ) -> Velocity: # TODO: stop if in range, hour/minute check
         # 1) 기본 속도 km/h→km/min
         on_road = battle_map.is_road(self.coord.x, self.coord.y)
         base_speed = (
@@ -145,12 +145,7 @@ class Troop:  # Troop class to store troop information and actions
                 c for c in cand_list if c[0].type in {UnitType.TANK, UnitType.APC}
             ]
             return sorted(at_targets, key=lambda c: (c[2], c[1]))
-        elif self.type in {
-            UnitType.MORTAR,
-            UnitType.HOWITZER,
-            UnitType.SPG,
-            UnitType.MLRS,
-        }:
+        elif UnitType.is_indirect_fire(self.type):
             return sorted(
                 cand_list,
                 key=lambda c: (

@@ -5,7 +5,7 @@ import numpy as np
 
 
 # MAX_TIME = 100.0 # 최대 시뮬레이션 시간 (분 단위) #for testingfrom typing import List, Tuple
-MAX_TIME = 2880.0  # 최대 시뮬레이션 시간 (분 단위) #TODO: 복구 요망
+MAX_TIME = 2880.0  # 최대 시뮬레이션 시간 (분 단위) 
 # TIME_STEP = 0.01 # 시뮬레이션 시간 간격 (분 단위)
 TIME_STEP = 1.0
 MAP_WIDTH = 30  # 맵의 너비

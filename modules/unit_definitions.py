@@ -127,7 +127,7 @@ class UnitType(Enum):
     # INFANTRY_AT = "infantry_at"  # 보병 대전차
     INFANTRY = "infantry"  # 보병
     SUPPLY = "supply"  # 보급차량
-    VEHICLE = "vehicle"  # 차량
+    # VEHICLE = "vehicle"  # 차량
     APC = "apc"  # 장갑차
     # DIR_FIRE_UNIT = ["tank", "atgm", "infantry_at"]
     # INDIRECT_FIRE_UNIT = ["mortar", "howitzer", "spg", "mlrs"]
@@ -157,6 +157,18 @@ class UnitType(Enum):
             cls.HOWITZER,
             cls.SPG,
             cls.MLRS,
+        }
+    
+    @classmethod
+    def is_infantry(cls, unit_type):
+        return unit_type in {
+            cls.INFANTRY,
+        }
+    
+    @classmethod
+    def is_supply(cls, unit_type):
+        return unit_type in {
+            cls.SUPPLY,
         }
 
 
@@ -221,10 +233,10 @@ TroopCategory = namedtuple("TroopCategory", ["blue", "red"])
 class UnitComposition(Enum):
     TANK = TroopCategory(blue={"Sho't_Kal": 10}, red={"T-55": 10, "T-62": 10})
 
-    # AT_WEAPON = TroopCategory(
-    #     blue={"BGM-71_TOW": 12, "106mm_M40_Recoilless_Rifle": 36, "M72_LAW": 12},
-    #     red={"9M14_Malyutka": 54, "107mm_B-11_Recoilless_Rifle": 36, "RPG-7": 54},
-    # )
+    AT_WEAPON = TroopCategory(
+        blue={"BGM-71_TOW": 12, "106mm_M40_Recoilless_Rifle": 36, "M72_LAW": 12},
+        red={"9M14_Malyutka": 54, "107mm_B-11_Recoilless_Rifle": 36, "RPG-7": 54},
+    )
 
     # TANK = TroopCategory(
     #     blue={"Sho't_Kal": 170},
@@ -239,10 +251,10 @@ class UnitComposition(Enum):
     # #     blue={"Golani×2 + ATGM중대": 850},
     # #     red={"보병여단3 + 기계화여단3": 4800}
     # # )
-    ARTILLERY = TroopCategory(
-        blue={"60mm_Mortar": 12, "105mm_Howitzer": 20},
-        red={"122mm_SPG": 200, "BM-21_MLRS": 200}  # "발" 단위는 맥락상 자주포 수량과 통합 처리
-    )
+    # ARTILLERY = TroopCategory(
+    #     blue={"60mm_Mortar": 12, "105mm_Howitzer": 20},
+    #     red={"122mm_SPG": 200, "BM-21_MLRS": 200}  # "발" 단위는 맥락상 자주포 수량과 통합 처리
+    # )
 
     # AT_WEAPON = TroopCategory(
     #     blue={"BGM-71_TOW": 12, "106mm_M40_Recoilless_Rifle": 36, "M72_LAW": 12},
@@ -452,6 +464,18 @@ UNIT_SPECS = {  # TODO: unit ph_func, pk_func 추가
         speed_road_kmh=65,
         speed_offroad_kmh=45,
     ),
+    "AK-47": UnitSpec(
+        name="AK-47",
+        team="red",
+        unit_type=UnitType.INFANTRY,
+        range_km=0.3,
+        ph_func=constant_dist_func(0.2),
+        pk_func=constant_dist_func(0.25),  # TODO
+        target_delay_func=triangular_distribution(2.0, 1.0),
+        fire_time_func=constant_dist_func(0.1),
+        speed_road_kmh=5,
+        speed_offroad_kmh=5,
+    ),
     # "BTR-60": UnitSpec(
     #     name="BTR-60",
     #     team="red",
@@ -464,30 +488,30 @@ UNIT_SPECS = {  # TODO: unit ph_func, pk_func 추가
     #     speed_road_kmh=80,
     #     speed_offroad_kmh=50
     # ),
-    "Golani×2 + ATGM중대": UnitSpec(
-        name="Golani×2 + ATGM중대",
-        team="blue",
-        unit_type=UnitType.INFANTRY,
-        range_km=0.3,  # 예: AK-47 유효사거리 0.3km
-        ph_func=constant_dist_func(0.2),  # 예: Ph=0.2 at 300m
-        pk_func="exp(-r/0.3)",
-        target_delay_func=triangular_distribution(2.0, 1.0),
-        fire_time_func=constant_dist_func(1.0),
-        speed_road_kmh=5,
-        speed_offroad_kmh=5,
-    ),
-    "보병여단3 + 기계화여단3": UnitSpec(
-        name="보병여단3 + 기계화여단3",
-        team="red",
-        unit_type=UnitType.INFANTRY,
-        range_km=0.3,
-        ph_func=constant_dist_func(0.2),
-        pk_func="exp(-r/0.3)",
-        target_delay_func=triangular_distribution(2.0, 1.0),
-        fire_time_func=constant_dist_func(1.0),
-        speed_road_kmh=5,
-        speed_offroad_kmh=5,
-    ),
+    # "Golani×2 + ATGM중대": UnitSpec(
+    #     name="Golani×2 + ATGM중대",
+    #     team="blue",
+    #     unit_type=UnitType.INFANTRY,
+    #     range_km=0.3,  # 예: AK-47 유효사거리 0.3km
+    #     ph_func=constant_dist_func(0.2),  # 예: Ph=0.2 at 300m
+    #     pk_func="exp(-r/0.3)",
+    #     target_delay_func=triangular_distribution(2.0, 1.0),
+    #     fire_time_func=constant_dist_func(1.0),
+    #     speed_road_kmh=5,
+    #     speed_offroad_kmh=5,
+    # ),
+    # "보병여단3 + 기계화여단3": UnitSpec(
+    #     name="보병여단3 + 기계화여단3",
+    #     team="red",
+    #     unit_type=UnitType.INFANTRY,
+    #     range_km=0.3,
+    #     ph_func=constant_dist_func(0.2),
+    #     pk_func="exp(-r/0.3)",
+    #     target_delay_func=triangular_distribution(2.0, 1.0),
+    #     fire_time_func=constant_dist_func(1.0),
+    #     speed_road_kmh=5,
+    #     speed_offroad_kmh=5,
+    # ),
     "Blue_Supply_Truck": UnitSpec(
         name="Blue_Supply_Truck",
         team="blue",
