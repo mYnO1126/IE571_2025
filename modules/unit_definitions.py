@@ -13,27 +13,29 @@ BLUE_HIT_PROB_BUFF = 0.8  # BLUE 진영의 명중 확률 버프
 
 # Probability distributions for firing times
 def triangular_distribution(M, C):
-    return np.random.triangular(M - C, M, M + C)
+    return lambda x: np.random.triangular(M - C, M, M + C)
 
 
-def normal_distribution(mean, variance):
-    return np.random.normal(mean, np.sqrt(variance))
+# def normal_distribution(mean, variance):
+#     return np.random.normal(mean, np.sqrt(variance))
 
 
-def uniform_distribution(a, b):
-    return np.random.uniform(a, b)
+# def uniform_distribution(a, b):
+#     return np.random.uniform(a, b)
 
 
-def constant_distribution(value):
-    return value
+# def constant_distribution(value):
+#     return value
 
+
+
+def constant_dist_func(value):
+    return lambda x: value
+    
 
 def exp_decay(range_limit, p_hit, decay_const):
     return lambda r: (p_hit if r <= range_limit else 0) * math.exp(-r / decay_const)
 
-
-def constant_func(value):
-    return lambda x: value
 
 
 def direct_fire_pk_func(coeff=1.0):
@@ -262,8 +264,8 @@ class UnitSpec:
         ph_func,
         pk_func,
         damage_func=None,
-        target_delay_func=constant_func(2.0),
-        fire_time_func=constant_func(1.0),
+        target_delay_func=constant_dist_func(2.0),
+        fire_time_func=constant_dist_func(1.0),
         speed_road_kmh=100,
         speed_offroad_kmh=100,
     ):
@@ -289,8 +291,8 @@ UNIT_SPECS = {  # TODO: unit ph_func, pk_func 추가
         range_km=2.5,
         ph_func=exp_decay(2.5, 0.75, 2.5),
         pk_func=direct_fire_pk_func(),
-        # target_delay_func=constant_func(1.0),
-        # fire_time_func=constant_func(1.0),
+        target_delay_func=triangular_distribution(2.0, 1.0),
+        fire_time_func=constant_dist_func(0.8),
         # speed_road_kmh=35,
         # speed_offroad_kmh=20
     ),
@@ -301,6 +303,8 @@ UNIT_SPECS = {  # TODO: unit ph_func, pk_func 추가
         range_km=2.0,
         ph_func=exp_decay(2.0, 0.7, 2.0),
         pk_func=direct_fire_pk_func(),
+        target_delay_func=triangular_distribution(3.0, 1.0),
+        fire_time_func=constant_dist_func(1.0),
         # speed_road_kmh=50,
         # speed_offroad_kmh=25
     ),
@@ -311,6 +315,8 @@ UNIT_SPECS = {  # TODO: unit ph_func, pk_func 추가
         range_km=2.0,
         ph_func=exp_decay(2.0, 0.68, 2.0),
         pk_func=direct_fire_pk_func(),
+        target_delay_func=triangular_distribution(3.0, 1.0),
+        fire_time_func=constant_dist_func(1.0),
         # speed_road_kmh=50,
         # speed_offroad_kmh=30
     ),
@@ -322,6 +328,8 @@ UNIT_SPECS = {  # TODO: unit ph_func, pk_func 추가
         ph_func=None,
         pk_func=indirect_pk_func(),
         damage_func=gaussian_damage_func(b=1.0),
+        target_delay_func=triangular_distribution(1.0, 0.5),
+        fire_time_func=constant_dist_func(0.8),
     ),
     "105mm_Howitzer": UnitSpec(
         name="105mm_Howitzer",
@@ -331,6 +339,8 @@ UNIT_SPECS = {  # TODO: unit ph_func, pk_func 추가
         ph_func=None,
         pk_func=indirect_pk_func(),
         damage_func=cookie_cutter_damage_func(),
+        target_delay_func=triangular_distribution(3.0, 1.0),
+        fire_time_func=constant_dist_func(1.0),
     ),
     "122mm_SPG": UnitSpec(
         name="122mm_SPG",
@@ -340,6 +350,8 @@ UNIT_SPECS = {  # TODO: unit ph_func, pk_func 추가
         ph_func=None,
         pk_func=indirect_pk_func(),
         damage_func=gaussian_damage_func(b=1.0),
+        target_delay_func=triangular_distribution(3.0, 1.0),
+        fire_time_func=constant_dist_func(1.0),
     ),
     "BM-21_MLRS": UnitSpec(
         name="BM-21_MLRS",
@@ -349,66 +361,82 @@ UNIT_SPECS = {  # TODO: unit ph_func, pk_func 추가
         ph_func=None,
         pk_func=indirect_pk_func(),
         damage_func=exponential_damage_func(b=1.0),
+        target_delay_func=triangular_distribution(1.0, 0.5),
+        fire_time_func=constant_dist_func(0.05),
     ),
     "BGM-71_TOW": UnitSpec(
         name="BGM-71_TOW",
         team="blue",
         unit_type=UnitType.ATGM,
         range_km=3.75,
-        ph_func=constant_func(0.9),
+        ph_func=constant_dist_func(0.9),
         pk_func=direct_fire_pk_func(0.9),
         # pk_func=simple_pk_func(0.9),
+        target_delay_func=triangular_distribution(1.0, 0.5),
+        fire_time_func=constant_dist_func(1.5),
     ),
     "9M14_Malyutka": UnitSpec(
         name="9M14_Malyutka",
         team="red",
         unit_type=UnitType.ATGM,
         range_km=3.0,
-        ph_func=constant_func(0.85),
+        ph_func=constant_dist_func(0.85),
         pk_func=direct_fire_pk_func(0.85),
         # pk_func=simple_pk_func(0.85),
+        target_delay_func=triangular_distribution(1.0, 0.5),
+        fire_time_func=constant_dist_func(1.3),
     ),
     "106mm_M40_Recoilless_Rifle": UnitSpec(
         name="106mm_M40_Recoilless_Rifle",
         team="blue",
         unit_type=UnitType.RECOILLESS,
         range_km=1.2,
-        ph_func=constant_func(0.8),
+        ph_func=constant_dist_func(0.8),
         pk_func=direct_fire_pk_func(),
+        target_delay_func=triangular_distribution(2.0, 0.5),
+        fire_time_func=constant_dist_func(1.2),
     ),
     "107mm_B-11_Recoilless_Rifle": UnitSpec(
         name="107mm_B-11_Recoilless_Rifle",
         team="red",
         unit_type=UnitType.RECOILLESS,
         range_km=0.6,
-        ph_func=constant_func(0.75),
+        ph_func=constant_dist_func(0.75),
         pk_func=direct_fire_pk_func(),
+        target_delay_func=triangular_distribution(2.0, 0.5),
+        fire_time_func=constant_dist_func(1.0),
     ),
     "M72_LAW": UnitSpec(
         name="M72_LAW",
         team="blue",
         unit_type=UnitType.RPG,
         range_km=0.3,
-        ph_func=constant_func(0.6),
+        ph_func=constant_dist_func(0.6),
         pk_func=direct_fire_pk_func(0.6),
         # pk_func=simple_pk_func(0.6),
+        target_delay_func=triangular_distribution(1.0, 0.5),
+        fire_time_func=constant_dist_func(0.8), #TODO: 재장전 없음
     ),
     "RPG-7": UnitSpec(
         name="RPG-7",
         team="red",
         unit_type=UnitType.RPG,
         range_km=0.5,
-        ph_func=constant_func(0.65),
+        ph_func=constant_dist_func(0.65),
         pk_func=direct_fire_pk_func(0.65),
         # pk_func=simple_pk_func(0.65),
+        target_delay_func=triangular_distribution(0.5, 0.17),
+        fire_time_func=constant_dist_func(0.7),
     ),
     "M113": UnitSpec(
         name="M113",
         team="blue",
         unit_type=UnitType.APC,
-        range_km=2.0,
-        ph_func=constant_func(0.30),
+        range_km=0.5,
+        ph_func=constant_dist_func(0.30),
         pk_func="exp(-r/2.0)",  # TODO
+        target_delay_func=triangular_distribution(2.0, 1.0),
+        fire_time_func=constant_dist_func(0.1),
         speed_road_kmh=64,
         speed_offroad_kmh=np.random.randint(40, 45),
     ),
@@ -417,8 +445,10 @@ UNIT_SPECS = {  # TODO: unit ph_func, pk_func 추가
         team="red",
         unit_type=UnitType.APC,
         range_km=0.8,
-        ph_func=constant_func(0.60),
+        ph_func=constant_dist_func(0.60),
         pk_func="exp(-r/2.0)",  # TODO
+        target_delay_func=triangular_distribution(2.0, 1.0),
+        fire_time_func=constant_dist_func(1.0),
         speed_road_kmh=65,
         speed_offroad_kmh=45,
     ),
@@ -427,8 +457,10 @@ UNIT_SPECS = {  # TODO: unit ph_func, pk_func 추가
     #     team="red",
     #     unit_type=UnitType.APC,
     #     range_km=0.8,
-    #     ph_func=constant_func(0.60),
+    #     ph_func=constant_dist_func(0.60),
     #     pk_func="exp(-r/2.0)", # TODO
+    # target_delay_func=triangular_distribution(2.0, 1.0),
+    #     fire_time_func=constant_dist_func(1.0),
     #     speed_road_kmh=80,
     #     speed_offroad_kmh=50
     # ),
@@ -437,8 +469,10 @@ UNIT_SPECS = {  # TODO: unit ph_func, pk_func 추가
         team="blue",
         unit_type=UnitType.INFANTRY,
         range_km=0.3,  # 예: AK-47 유효사거리 0.3km
-        ph_func=constant_func(0.2),  # 예: Ph=0.2 at 300m
+        ph_func=constant_dist_func(0.2),  # 예: Ph=0.2 at 300m
         pk_func="exp(-r/0.3)",
+        target_delay_func=triangular_distribution(2.0, 1.0),
+        fire_time_func=constant_dist_func(1.0),
         speed_road_kmh=5,
         speed_offroad_kmh=5,
     ),
@@ -447,8 +481,10 @@ UNIT_SPECS = {  # TODO: unit ph_func, pk_func 추가
         team="red",
         unit_type=UnitType.INFANTRY,
         range_km=0.3,
-        ph_func=constant_func(0.2),
+        ph_func=constant_dist_func(0.2),
         pk_func="exp(-r/0.3)",
+        target_delay_func=triangular_distribution(2.0, 1.0),
+        fire_time_func=constant_dist_func(1.0),
         speed_road_kmh=5,
         speed_offroad_kmh=5,
     ),
@@ -459,6 +495,8 @@ UNIT_SPECS = {  # TODO: unit ph_func, pk_func 추가
         range_km=0.0,
         ph_func=exp_decay(0.1, 0.6, 0.1),
         pk_func="exp(-r/0.1)",
+        target_delay_func=triangular_distribution(2.0, 1.0),
+        fire_time_func=constant_dist_func(1.0),
         speed_road_kmh=80,
         speed_offroad_kmh=40,
     ),
@@ -469,6 +507,8 @@ UNIT_SPECS = {  # TODO: unit ph_func, pk_func 추가
         range_km=0.0,
         ph_func=exp_decay(0.1, 0.6, 0.1),
         pk_func="exp(-r/0.1)",
+        target_delay_func=triangular_distribution(2.0, 1.0),
+        fire_time_func=constant_dist_func(1.0),
         speed_road_kmh=80,
         speed_offroad_kmh=40,
     ),
