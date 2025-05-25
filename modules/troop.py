@@ -135,12 +135,7 @@ class Troop:  # Troop class to store troop information and actions
                     c[1],
                 ),
             )
-        elif self.type in {
-            UnitType.ATGM,
-            UnitType.RPG,
-            UnitType.RECOILLESS,
-            # UnitType.INFANTRY_AT,
-        }:
+        elif UnitType.is_anti_tank(self.type):
             at_targets = [
                 c for c in cand_list if c[0].type in {UnitType.TANK, UnitType.APC}
             ]
