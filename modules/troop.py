@@ -5,14 +5,14 @@ import math
 import numpy as np
 import random
 from .map import Coord, Velocity, Map, MAX_TIME, TIME_STEP
-from .unit_definitions import UnitStatus, UnitType, UnitComposition, HitState, UNIT_SPECS, BLUE_HIT_PROB_BUFF, get_landing_data
+from .unit_definitions import UnitStatus, UnitType, UnitComposition, HitState, UNIT_SPECS, BLUE_HIT_PROB_BUFF, get_landing_data, AMMUNITION_DATABASE, AmmunitionInfo, SUPPLY_DATABASE
 
 
 class Troop:  # Troop class to store troop information and actions
     # Static variables to keep track of troop IDs
     counter = {}
 
-    def __init__(self, unit_name, coord=Coord(), affiliation: str = None):
+    def __init__(self, unit_name, coord=Coord(), affiliation: str = None, phase: str = None):
         spec = UNIT_SPECS[unit_name]
         self.spec = spec
         self.team = spec.team
@@ -26,7 +26,8 @@ class Troop:  # Troop class to store troop information and actions
         self.fire_time_func = spec.fire_time_func
 
         self.affiliation = affiliation
-
+        self.phase = phase
+        
         self.id = self.assign_id()
         self.next_fire_time = 0.0  # Initial fire time
         self.target = None
@@ -35,8 +36,27 @@ class Troop:  # Troop class to store troop information and actions
         self.coord = coord  # Coordinate object to store (x, y, z) coordinates
         self.velocity = Velocity()  # Placeholder for velocity (x, y, z)
         self.status = UnitStatus.ALIVE  # Placeholder for unit status
+
         self.ammo = 100  # ammo level (0-100%)
         self.supply = 100  # supply level (0-100%)
+        ammo_info = AMMUNITION_DATABASE.get(unit_name, AmmunitionInfo(0, 0, 0, 0))
+        # 적재량
+        self.main_ammo = float(ammo_info.main_ammo)
+        self.secondary_ammo = float(ammo_info.secondary_ammo)
+
+        # ▶ 분당 사용 속도 (= 하루 예상 사용량 ÷ 1440 분)
+        self.main_rate  = ammo_info.daily_main_usage / 1440.0
+        self.sec_rate   = ammo_info.daily_sec_usage  / 1440.0
+
+        self.last_ammo_check = 0.0          # 마지막 소모 계산 시각
+        self.ammo_restricted_until = 0.0    # 10 % 이하 → 5 분 금지용
+
+        if self.type == UnitType.SUPPLY:
+            self.supply_stock = {}  # 예: {"T-55": 129, "AK-47": 12000, ...}
+            for k, v in SUPPLY_DATABASE.items():
+                self.supply_stock[k] = float(v)
+
+
 
     def dead(self):
         del self  # Explicitly delete the object
@@ -207,8 +227,48 @@ class Troop:  # Troop class to store troop information and actions
             self.next_fire_time = float("inf")
             # print("no more enemy left")
             return
+        
+        # ▶ 경과 시간만큼 탄약을 자동 소모
+    def consume_ammo(self, current_time):
+        dt = current_time - self.last_ammo_check
+        if dt <= 0:
+            return
+
+        # 저장해두고
+        prev_main = int(self.main_ammo)
+        prev_sec = int(self.secondary_ammo)
+
+        # 감소
+        self.main_ammo = max(0.0, self.main_ammo - self.main_rate * dt)
+        self.secondary_ammo = max(0.0, self.secondary_ammo - self.sec_rate * dt)
+
+        # 현재 정수 단위
+        curr_main = int(self.main_ammo)
+        curr_sec = int(self.secondary_ammo)
+
+        # 정수 단위 탄약 감소 여부 저장
+        self.main_ammo_int_changed = (curr_main < prev_main)
+        self.secondary_ammo_int_changed = (curr_sec < prev_sec)
+
+        self.last_ammo_check = current_time
 
     def fire(self, current_time, enemy_list, history):  # TODO: Implement firing logic
+        # ▶ 경과 분만큼 탄약 소모
+        self.consume_ammo(current_time)
+
+        total_ammo = self.main_ammo + self.secondary_ammo
+
+        # 10 % 이하 → 5 분 금지
+        if total_ammo <= 0.1 * (
+             AMMUNITION_DATABASE[self.name].main_ammo +
+             AMMUNITION_DATABASE[self.name].secondary_ammo):
+            self.ammo_restricted_until = current_time + 5.0
+
+        # ▶ 탄약 없거나 제한 시간이면 발사 불가
+        if total_ammo <= 0 or current_time < self.ammo_restricted_until:
+            self.next_fire_time = round(current_time + 1.0, 2)  # 1 분 뒤 재시도
+            return
+
         if not self.alive:
             return
 
@@ -368,6 +428,45 @@ class TroopList:  # Troop list to manage all troops
             if troop.next_fire_time <= current_time:
                 enemies = self.get_enemy_list(troop)
                 troop.fire(current_time, enemies, history)
+        if not self.main_ammo_int_changed and not self.secondary_ammo_int_changed:
+            self.next_fire_time = round(current_time + 1.0, 2)
+            return
+        
+    def resupply(self, current_time):
+        supply_trucks = [t for t in self.troops
+                        if t.alive and t.type == UnitType.SUPPLY]
+
+        for supply in supply_trucks:
+            for unit in self.troops:
+                if not unit.alive or unit.team != supply.team or unit.type == UnitType.SUPPLY:
+                    continue
+                if supply.get_distance(unit) < 0.3:
+                    unit_name = unit.name
+                    if unit_name not in SUPPLY_DATABASE or unit_name not in supply.supply_stock:
+                        continue
+
+                    max_ammo = AMMUNITION_DATABASE[unit_name].main_ammo + AMMUNITION_DATABASE[unit_name].secondary_ammo
+                    curr_ammo = unit.main_ammo + unit.secondary_ammo
+                    missing_ammo = max(0.0, max_ammo - curr_ammo)
+
+                    available = supply.supply_stock[unit_name]
+                    given = min(missing_ammo, available)
+
+                    if given <= 0:
+                        continue
+
+                    # 보급 수행
+                    unit_total = unit.main_ammo + unit.secondary_ammo
+                    ratio_main = unit.main_ammo / unit_total if unit_total > 0 else 1.0
+
+                    unit.main_ammo += given * ratio_main
+                    unit.secondary_ammo += given * (1 - ratio_main)
+
+                    # 보급 트럭 잔여량 감소
+                    supply.supply_stock[unit_name] -= given
+
+                    # 사격 제한 시간 갱신
+                    unit.ammo_restricted_until = current_time + 5.0
 
 
 def generate_initial_troops(placement_zones):

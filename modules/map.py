@@ -11,60 +11,6 @@ TIME_STEP = 1.0
 # MAP_HEIGHT = 30  # 맵의 높이
 CELL_SIZE_KM = 0.01 # 10m
 
-def generate_grid_positions(x_range, y_range, num):
-    width, height = x_range[1]-x_range[0], y_range[1]-y_range[0]
-    cols = int(np.ceil(np.sqrt(num)))
-    rows = int(np.ceil(num/cols))
-    cell_w, cell_h = width/cols, height/rows
-
-    pts = []
-    idx = 0
-    for r in range(rows):
-        for c in range(cols):
-            if idx >= num: break
-            x = x_range[0] + c*cell_w + cell_w/2
-            y = y_range[0] + r*cell_h + cell_h/2
-            pts.append((x,y))
-            idx += 1
-    return pts
-
-def split_zone(x_range, y_range, n_types):
-    """Y축으로 n_types만큼 sub-zone 분할"""
-    if n_types<=0: return []
-    y0,y1 = y_range
-    h = (y1-y0)/n_types
-    subs = []
-    for i in range(n_types):
-        subs.append((x_range, (y0 + i*h, y0 + (i+1)*h)))
-    return subs
-
-def compute_all_positions(placement_zones, team, phase):
-    positions = {}
-    positions[team] = {}
-    for zone_name, (xr, yr, comp) in placement_zones[phase].items():
-        if xr == (0,0) and yr == (0,0) : continue
-        types = list(comp.keys())
-        subzones = split_zone(xr, yr, len(types))
-        pos_map = {}
-        for ut, subz in zip(types, subzones):
-            pos_map[ut] = generate_grid_positions(subz[0], subz[1], comp[ut])
-        positions[team][zone_name] = pos_map
-    return positions
-
-    # for team, zones in placement_zones.items():
-    #     positions[team] = {}
-    #     for zone_name, (xr, yr, comp) in zones.items():
-    #         if xr==(0,0) or yr==(0,0): continue
-    #         types = list(comp.keys())
-    #         subzones = split_zone(xr, yr, len(types))
-    #         pos_map = {}
-    #         for ut, subz in zip(types, subzones):
-    #             pos_map[ut] = generate_grid_positions(subz[0], subz[1], comp[ut])
-    #         positions[team][zone_name] = pos_map
-    # return positions
-
-
-
 class Velocity:  # Velocity class to store velocity information
     def __init__(self, x=0, y=0, z=0):
         self.x = x
@@ -126,36 +72,36 @@ class Map:  # Map class to store map information
             return float(self.aspect_arr[yi, xi])
         return 0.0
     
-    def is_impassable(self, x, y) -> bool:
-        xi, yi = int(x), int(y)
-        if not (0 <= yi < self.height and 0 <= xi < self.width):
-            return True
-        # 호수는 통과 불가
-        if self.lake_mask[yi, xi]:
-            return True
-        return False
+    # def is_impassable(self, x, y) -> bool:
+    #     xi, yi = int(x), int(y)
+    #     if not (0 <= yi < self.height and 0 <= xi < self.width):
+    #         return True
+    #     # 호수는 통과 불가
+    #     if self.lake_mask[yi, xi]:
+    #         return True
+    #     return False
 
     def is_road(self, x, y) -> bool:
         xi, yi = int(x), int(y)
         return (0 <= yi < self.height and 0 <= xi < self.width
                 and self.road_mask[yi, xi])
     
-    def local_mask_density(self, mask, x, y, radius=1) -> float:
-        """
-        주어진 마스크 배열(mask: 2D boolean)에서 근방 밀도 계산
-        """
-        xi, yi = int(x), int(y)
-        x0, x1 = max(0, xi-radius), min(self.width, xi+radius+1)
-        y0, y1 = max(0, yi-radius), min(self.height, yi+radius+1)
-        window = mask[y0:y1, x0:x1]
-        return window.mean() if window.size else 0.0
+    # def local_mask_density(self, mask, x, y, radius=1) -> float:
+    #     """
+    #     주어진 마스크 배열(mask: 2D boolean)에서 근방 밀도 계산
+    #     """
+    #     xi, yi = int(x), int(y)
+    #     x0, x1 = max(0, xi-radius), min(self.width, xi+radius+1)
+    #     y0, y1 = max(0, yi-radius), min(self.height, yi+radius+1)
+    #     window = mask[y0:y1, x0:x1]
+    #     return window.mean() if window.size else 0.0
 
-    def wood_density(self,x,y,radius=1)->float:
-        i,j=int(y),int(x)
-        y0,y1=max(0,i-radius),min(self.height,i+radius+1)
-        x0,x1=max(0,j-radius),min(self.width,j+radius+1)
-        window=self.wood_mask[y0:y1,x0:x1]
-        return float(window.mean()) if window.size else 0.0
+    # def wood_density(self,x,y,radius=1)->float:
+    #     i,j=int(y),int(x)
+    #     y0,y1=max(0,i-radius),min(self.height,i+radius+1)
+    #     x0,x1=max(0,j-radius),min(self.width,j+radius+1)
+    #     window=self.wood_mask[y0:y1,x0:x1]
+    #     return float(window.mean()) if window.size else 0.0
     
     def add_obstacle(self, x, y):
         if 0 <= x < self.width and 0 <= y < self.height:
@@ -164,10 +110,10 @@ class Map:  # Map class to store map information
     def is_obstacle(self, x, y):
         return self.grid[x][y] == 1
 
-    def get_terrain(self, x, y):  # Get terrain type at (x, y)
-        if 0 <= x < self.width and 0 <= y < self.height:
-            return self.grid[x][y]
-        return None
+    # def get_terrain(self, x, y):  # Get terrain type at (x, y)
+    #     if 0 <= x < self.width and 0 <= y < self.height:
+    #         return self.grid[x][y]
+    #     return None
 
     # def is_road(self, x, y):
     #     xi, yi = int(x), int(y)
@@ -179,6 +125,7 @@ class Map:  # Map class to store map information
             self.grid[xi, yi] if (0 <= xi < self.width and 0 <= yi < self.height) else 0
         )
         return self.terrain_cost.get(code, 1.0)
+    
     def build_cost_map(self, slope_weight=5.0, obstacle_cost=np.inf):
         """
         각 셀에 대한 이동 비용(cost map)을 생성합니다.
