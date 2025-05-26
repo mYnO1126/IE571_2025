@@ -1,68 +1,68 @@
 # map.py
-
-
 import numpy as np
-
+from heapq import heappush, heappop
+import math
 
 # MAX_TIME = 100.0 # 최대 시뮬레이션 시간 (분 단위) #for testingfrom typing import List, Tuple
 MAX_TIME = 2880.0  # 최대 시뮬레이션 시간 (분 단위) 
 # TIME_STEP = 0.01 # 시뮬레이션 시간 간격 (분 단위)
 TIME_STEP = 1.0
-MAP_WIDTH = 30  # 맵의 너비
-MAP_HEIGHT = 30  # 맵의 높이
+# MAP_WIDTH = 30  # 맵의 너비
+# MAP_HEIGHT = 30  # 맵의 높이
+CELL_SIZE_KM = 0.01 # 10m
 
-# Blueprint: 카테고리별로 영역(사각형)과 소속태그를 매핑
-# placement_zones[카테고리][키] = (x_range, y_range, affiliation)
-placement_zones = {
-    "TANK": {
-        "blue": ((0, 10), (0, 30), "FixedDefense"),
-        "red_reserve": ((20, 30), (0, 30), "Reserve"),
-        # "red_E1":       ((0, 10),  (40, 50), "E1"),
-        # "red_E2":       ((0, 10),  (50, 60), "E2"),
-        # "red_E3":       ((0, 10),  (60, 70), "E3"),
-        # "red_E4":       ((0, 10),  (70, 80), "E4"),
-    },
-    # "APC": {
-    #     "blue":         ((12, 18), (46, 54), "FixedDefense"),
-    #     "red_reserve":  ((82, 88), (46, 54), "Reserve"),
-    #     "red_E1":       ((1,  9),  (41, 49), "E1"),
-    #     "red_E2":       ((1,  9),  (51, 59), "E2"),
-    #     "red_E3":       ((1,  9),  (61, 69), "E3"),
-    #     "red_E4":       ((1,  9),  (71, 79), "E4"),
-    # },
-    # "INFANTRY": {
-    #     "blue":         ((14, 16), (47, 53), "FixedDefense"),
-    #     "red_reserve":  ((84, 86), (47, 53), "Reserve"),
-    #     "red_E1":       ((2,  8),  (42, 48), "E1"),
-    #     "red_E2":       ((2,  8),  (52, 58), "E2"),
-    #     "red_E3":       ((2,  8),  (62, 68), "E3"),
-    #     "red_E4":       ((2,  8),  (72, 78), "E4"),
-    # },
-    "ARTILLERY": {
-        "blue": ((0, 10), (0, 30), "FixedDefense"),
-        "red_reserve": ((20, 30), (0, 30), "Reserve"),
-        # "red_E1":       ((3,  7),  (43, 47), "E1"),
-        # "red_E2":       ((3,  7),  (53, 57), "E2"),
-        # "red_E3":       ((3,  7),  (63, 67), "E3"),
-        # "red_E4":       ((3,  7),  (73, 77), "E4"),
-    },
-    "AT_WEAPON": {
-        "blue": ((0, 10), (0, 30), "FixedDefense"),
-        "red_reserve": ((20, 30), (0, 30), "Reserve"),
-        # "red_E1":       ((4,  6),  (44, 46), "E1"),
-        # "red_E2":       ((4,  6),  (54, 56), "E2"),
-        # "red_E3":       ((4,  6),  (64, 66), "E3"),
-        # "red_E4":       ((4,  6),  (74, 76), "E4"),
-    },
-    # "SUPPLY": {
-    #     "blue":         ((13, 19), (45, 55), "FixedDefense"),
-    #     "red_reserve":  ((83, 89), (45, 55), "Reserve"),
-    #     "red_E1":       ((5,  9),  (40, 50), "E1"),
-    #     "red_E2":       ((5,  9),  (50, 60), "E2"),
-    #     "red_E3":       ((5,  9),  (60, 70), "E3"),
-    #     "red_E4":       ((5,  9),  (70, 80), "E4"),
-    # },
-}
+def generate_grid_positions(x_range, y_range, num):
+    width, height = x_range[1]-x_range[0], y_range[1]-y_range[0]
+    cols = int(np.ceil(np.sqrt(num)))
+    rows = int(np.ceil(num/cols))
+    cell_w, cell_h = width/cols, height/rows
+
+    pts = []
+    idx = 0
+    for r in range(rows):
+        for c in range(cols):
+            if idx >= num: break
+            x = x_range[0] + c*cell_w + cell_w/2
+            y = y_range[0] + r*cell_h + cell_h/2
+            pts.append((x,y))
+            idx += 1
+    return pts
+
+def split_zone(x_range, y_range, n_types):
+    """Y축으로 n_types만큼 sub-zone 분할"""
+    if n_types<=0: return []
+    y0,y1 = y_range
+    h = (y1-y0)/n_types
+    subs = []
+    for i in range(n_types):
+        subs.append((x_range, (y0 + i*h, y0 + (i+1)*h)))
+    return subs
+
+def compute_all_positions(placement_zones, team, phase):
+    positions = {}
+    positions[team] = {}
+    for zone_name, (xr, yr, comp) in placement_zones[phase].items():
+        if xr == (0,0) and yr == (0,0) : continue
+        types = list(comp.keys())
+        subzones = split_zone(xr, yr, len(types))
+        pos_map = {}
+        for ut, subz in zip(types, subzones):
+            pos_map[ut] = generate_grid_positions(subz[0], subz[1], comp[ut])
+        positions[team][zone_name] = pos_map
+    return positions
+
+    # for team, zones in placement_zones.items():
+    #     positions[team] = {}
+    #     for zone_name, (xr, yr, comp) in zones.items():
+    #         if xr==(0,0) or yr==(0,0): continue
+    #         types = list(comp.keys())
+    #         subzones = split_zone(xr, yr, len(types))
+    #         pos_map = {}
+    #         for ut, subz in zip(types, subzones):
+    #             pos_map[ut] = generate_grid_positions(subz[0], subz[1], comp[ut])
+    #         positions[team][zone_name] = pos_map
+    # return positions
+
 
 
 class Velocity:  # Velocity class to store velocity information
@@ -84,17 +84,79 @@ class Coord:  # Coordinate class to store x, y, z coordinates
         self.y += velocity.y * TIME_STEP
         self.z += velocity.z * TIME_STEP
 
-
 class Map:  # Map class to store map information
-    def __init__(self, width, height):
-        self.width = width
-        self.height = height
-        self.grid = np.zeros((width, height))
+    def __init__(self, filename = "map/golan_full_dataset_cropped.npz"): #, width, height):
+        # (1) 데이터 로드
+        data = np.load(filename, allow_pickle=True)
 
-        # 0: 평지, 1: 험지, 2: 도로
-        self.grid = np.zeros((width, height), dtype=int)
-        self.terrain_cost = {0: 1.0, 1: 1.5, 2: 0.8}
+        # 1) 래스터/마스크 레이어
+        self.dem_arr       = data["dem"]
+        self.aspect_arr    = data["aspect"]
+        self.slope_arr     = data["slope"]
+        self.road_mask     = data["road_mask"]
+        self.lake_mask     = data["lake_mask"]
+        self.stream_mask   = data["stream_mask"]
+        self.wood_mask     = data["wood_mask"]
+        
+        # 3) 메타정보 복원
+        transform_arr = data["transform"]            # (6,) 배열
+        # transform     = Affine.from_gdal(*transform_arr)
+        crs_str       = str(data["crs"].item())      # e.g. "EPSG:3857"
+        # crs           = CRS.from_string(crs_str)
 
+        self.height,self.width = self.dem_arr.shape
+        self.terrain_cost = {0:1.0,1:1.5,2:0.8,3:0.0} # 0: 평지, 1: 험지, 2: 도로, 3: 호수
+        self.grid = np.zeros((self.width,self.height),dtype=int)
+        
+        self.cost_map = self.build_cost_map()
+
+    def get_slope(self, x, y) -> float:
+        """현재 좌표(x,y)의 경사(도 단위)를 반환."""
+        xi, yi = int(x), int(y)
+        if 0 <= yi < self.height and 0 <= xi < self.width:
+            return float(self.slope_arr[yi, xi])
+        return 0.0
+
+    def get_aspect(self, x, y) -> float:
+        """
+        경사 방향(방위각, degree 단위: 0°=북, 90°=동, 180°=남, 270°=서)
+        """
+        xi, yi = int(x), int(y)
+        if 0 <= yi < self.height and 0 <= xi < self.width:
+            return float(self.aspect_arr[yi, xi])
+        return 0.0
+    
+    def is_impassable(self, x, y) -> bool:
+        xi, yi = int(x), int(y)
+        if not (0 <= yi < self.height and 0 <= xi < self.width):
+            return True
+        # 호수는 통과 불가
+        if self.lake_mask[yi, xi]:
+            return True
+        return False
+
+    def is_road(self, x, y) -> bool:
+        xi, yi = int(x), int(y)
+        return (0 <= yi < self.height and 0 <= xi < self.width
+                and self.road_mask[yi, xi])
+    
+    def local_mask_density(self, mask, x, y, radius=1) -> float:
+        """
+        주어진 마스크 배열(mask: 2D boolean)에서 근방 밀도 계산
+        """
+        xi, yi = int(x), int(y)
+        x0, x1 = max(0, xi-radius), min(self.width, xi+radius+1)
+        y0, y1 = max(0, yi-radius), min(self.height, yi+radius+1)
+        window = mask[y0:y1, x0:x1]
+        return window.mean() if window.size else 0.0
+
+    def wood_density(self,x,y,radius=1)->float:
+        i,j=int(y),int(x)
+        y0,y1=max(0,i-radius),min(self.height,i+radius+1)
+        x0,x1=max(0,j-radius),min(self.width,j+radius+1)
+        window=self.wood_mask[y0:y1,x0:x1]
+        return float(window.mean()) if window.size else 0.0
+    
     def add_obstacle(self, x, y):
         if 0 <= x < self.width and 0 <= y < self.height:
             self.grid[x][y] = 1  # Mark as obstacle
@@ -107,9 +169,9 @@ class Map:  # Map class to store map information
             return self.grid[x][y]
         return None
 
-    def is_road(self, x, y):
-        xi, yi = int(x), int(y)
-        return 0 <= xi < self.width and 0 <= yi < self.height and self.grid[xi, yi] == 2
+    # def is_road(self, x, y):
+    #     xi, yi = int(x), int(y)
+    #     return 0 <= xi < self.width and 0 <= yi < self.height and self.grid[xi, yi] == 2
 
     def movement_factor(self, x, y):
         xi, yi = int(x), int(y)
@@ -117,3 +179,92 @@ class Map:  # Map class to store map information
             self.grid[xi, yi] if (0 <= xi < self.width and 0 <= yi < self.height) else 0
         )
         return self.terrain_cost.get(code, 1.0)
+    def build_cost_map(self, slope_weight=5.0, obstacle_cost=np.inf):
+        """
+        각 셀에 대한 이동 비용(cost map)을 생성합니다.
+        slope_weight: 경사도(°)당 추가 비용 계수
+        obstacle_cost: 통과 불가(호수 등) 셀의 비용
+        """
+        h, w = self.slope_arr.shape
+        cost_map = np.zeros((h, w), dtype=float)
+        for i in range(h):
+            for j in range(w):
+                if self.lake_mask[i, j] or self.grid[j, i] == 1:
+                    cost_map[i, j] = obstacle_cost
+                else:
+                    base = self.terrain_cost.get(self.grid[j, i], 1.0)
+                    slope = float(self.slope_arr[i, j])
+                    cost_map[i, j] = base + slope * slope_weight
+        return cost_map
+
+    def build_flow_field(self, goal_cell):
+        """
+        goal_cell: (i, j) 튜플 — 목표 지점의 그리드 좌표
+        self.flow_dir: 각 셀에서 다음으로 이동할 (di,dj) 방향 벡터를 담은 배열
+        """
+        h, w = self.cost_map.shape
+        dist = np.full((h, w), np.inf)
+        flow_dir = np.zeros((h, w, 2), dtype=int)
+        DIRS = [(-1,0),(1,0),(0,-1),(0,1),(-1,-1),(-1,1),(1,-1),(1,1)]
+        
+        pq = []
+        dist[goal_cell] = 0
+        heappush(pq, (0, goal_cell))
+
+        while pq:
+            d,(i,j) = heappop(pq)
+            if d > dist[i,j]:
+                continue
+            for di,dj in DIRS:
+                ni, nj = i+di, j+dj
+                if not (0 <= ni < h and 0 <= nj < w): 
+                    continue
+                cost = self.cost_map[ni, nj]
+                if cost == np.inf: 
+                    continue
+                nd = d + cost
+                if nd < dist[ni, nj]:
+                    dist[ni, nj] = nd
+                    # (ni,nj) 셀에서 최적 경로 따라가려면 다음에 (di,dj)만큼 이동
+                    flow_dir[ni, nj] = np.array([ di * -1, dj * -1 ], dtype=int)
+                    heappush(pq, (nd, (ni, nj)))
+
+        self.flow_field = flow_dir
+        self.flow_dist  = dist
+
+def astar(cost_map, start, goal):
+    """
+    cost_map: 2D numpy array, inf => 통과불가
+    start, goal: (i, j) tuple
+    returns: list of (i, j) 경로
+    """
+    h, w = cost_map.shape
+    DIRS = [(-1,0),(1,0),(0,-1),(0,1),(-1,-1),(-1,1),(1,-1),(1,1)]
+    open_set = []
+    heappush(open_set, (0 + _heuristic(start, goal), 0, start, None))
+    came_from = {}
+    g_score = {start: 0}
+    while open_set:
+        f, g, current, parent = heappop(open_set)
+        if current == goal:
+            path = [current]
+            while parent:
+                path.append(parent)
+                parent = came_from[parent]
+            return path[::-1]
+        if current in came_from:
+            continue
+        came_from[current] = parent
+        for di, dj in DIRS:
+            ni, nj = current[0] + di, current[1] + dj
+            if not (0 <= ni < h and 0 <= nj < w):
+                continue
+            tentative = g + cost_map[ni, nj]
+            if tentative < g_score.get((ni, nj), float('inf')):
+                g_score[(ni, nj)] = tentative
+                heappush(open_set, (tentative + _heuristic((ni, nj), goal), tentative, (ni, nj), current))
+    return []
+
+
+def _heuristic(a, b):
+    return math.hypot(a[0] - b[0], a[1] - b[1])
