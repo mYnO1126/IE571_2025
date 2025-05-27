@@ -56,13 +56,13 @@ class Map:  # Map class to store map information
         self.terrain_cost = {
             0: 1.0,  # plain
             1: 1.5,  # rugged (slope 15)
-            2: 1.8,  # rugged (slope 20)
-            3: 2.5,  # rugged (slope 30)
+            2: 3.0,  # rugged (slope 20)
+            3: 5.0,  # rugged (slope 30)
             4: np.inf,  # rugged (slope 45)
-            5: 0.8,  # road
+            5: 0.5,  # road
             6: np.inf,  # lake
-            7: 1.2,  # wood (forest)
-            8: 1.3,  # stream (smaller water)
+            7: 1.5,  # wood (forest)
+            8: 2.0,  # stream (smaller water)
         }
 
         # 1) 빈 grid 생성 (height x width)
