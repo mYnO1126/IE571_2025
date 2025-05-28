@@ -446,7 +446,7 @@ UNIT_SPECS = {  # TODO: unit ph_func, pk_func 추가
         unit_type=UnitType.APC,
         range_km=0.5,
         ph_func=constant_dist_func(0.30),
-        pk_func="exp(-r/2.0)",  # TODO
+        pk_func=direct_fire_pk_func(), #TODO temp "exp(-r/2.0)",  # TODO
         target_delay_func=triangular_distribution(2.0, 1.0),
         fire_time_func=constant_dist_func(0.1),
         speed_road_kmh=64,
@@ -458,7 +458,7 @@ UNIT_SPECS = {  # TODO: unit ph_func, pk_func 추가
         unit_type=UnitType.APC,
         range_km=0.8,
         ph_func=constant_dist_func(0.60),
-        pk_func="exp(-r/2.0)",  # TODO
+        pk_func=direct_fire_pk_func(), #TODO temp # TODO
         target_delay_func=triangular_distribution(2.0, 1.0),
         fire_time_func=constant_dist_func(1.0),
         speed_road_kmh=65,
@@ -470,7 +470,7 @@ UNIT_SPECS = {  # TODO: unit ph_func, pk_func 추가
         unit_type=UnitType.INFANTRY,
         range_km=0.3,
         ph_func=constant_dist_func(0.2),
-        pk_func=constant_dist_func(0.25),  # TODO
+        pk_func=direct_fire_pk_func(), #TODO constant_dist_func(0.25),  # TODO
         target_delay_func=triangular_distribution(2.0, 1.0),
         fire_time_func=constant_dist_func(0.1),
         speed_road_kmh=5,
@@ -825,6 +825,62 @@ def get_landing_data(
     lethal_area_radius = math.sqrt(lethal_area / math.pi)  # 원형으로 가정
 
     return landing_x, landing_y, lethal_area_radius
+
+
+AmmunitionInfo = namedtuple("AmmunitionInfo", [
+    "main_ammo",         # 주포 탄약 수량
+    "secondary_ammo",    # 부무장 탄약 수량 (소총/기관총)
+    "daily_main_usage",  # 주포 예상 일일 소모량
+    "daily_sec_usage"    # 부무장 예상 일일 소모량
+])
+
+# 단위: 발 / 소모량은 1일 기준
+AMMUNITION_DATABASE = {
+    # 전차 및 장갑차
+    "Sho't_Kal": AmmunitionInfo(main_ammo=64, secondary_ammo=4000, daily_main_usage=30, daily_sec_usage=2000),
+    "T-55": AmmunitionInfo(main_ammo=43, secondary_ammo=3500, daily_main_usage=25, daily_sec_usage=1800),
+    "T-62": AmmunitionInfo(main_ammo=40, secondary_ammo=2500, daily_main_usage=20, daily_sec_usage=1500),
+    "M113": AmmunitionInfo(main_ammo=0, secondary_ammo=2000, daily_main_usage=0, daily_sec_usage=1000),
+    "BMP-1": AmmunitionInfo(main_ammo=40, secondary_ammo=2000, daily_main_usage=20, daily_sec_usage=1000),
+    "BTR-60": AmmunitionInfo(main_ammo=0, secondary_ammo=2000, daily_main_usage=0, daily_sec_usage=1000),
+
+    # 대전차 무기
+    "BGM-71_TOW": AmmunitionInfo(main_ammo=10, secondary_ammo=0, daily_main_usage=5, daily_sec_usage=0),
+    "9M14_Malyutka": AmmunitionInfo(main_ammo=5, secondary_ammo=0, daily_main_usage=3, daily_sec_usage=0),
+    "106mm_M40_Recoilless_Rifle": AmmunitionInfo(main_ammo=6, secondary_ammo=0, daily_main_usage=4, daily_sec_usage=0),
+    "107mm_B-11_Recoilless_Rifle": AmmunitionInfo(main_ammo=5, secondary_ammo=0, daily_main_usage=3, daily_sec_usage=0),
+    "M72_LAW": AmmunitionInfo(main_ammo=1, secondary_ammo=0, daily_main_usage=1, daily_sec_usage=0),
+    "RPG-7": AmmunitionInfo(main_ammo=5, secondary_ammo=0, daily_main_usage=3, daily_sec_usage=0),
+
+    # 보병 및 소총
+    "AK-47": AmmunitionInfo(main_ammo=300, secondary_ammo=0, daily_main_usage=200, daily_sec_usage=0),
+
+    # 박격포 / 자주포 / 로켓
+    "60mm_Mortar": AmmunitionInfo(main_ammo=30, secondary_ammo=0, daily_main_usage=20, daily_sec_usage=0),
+    "105mm_Howitzer": AmmunitionInfo(main_ammo=40, secondary_ammo=0, daily_main_usage=25, daily_sec_usage=0),
+    "122mm_SPG": AmmunitionInfo(main_ammo=40, secondary_ammo=0, daily_main_usage=30, daily_sec_usage=0),
+    "BM-21_MLRS": AmmunitionInfo(main_ammo=40, secondary_ammo=0, daily_main_usage=40, daily_sec_usage=0),
+}
+
+#공급 수량
+SUPPLY_DATABASE = {
+    "Sho't_Kal": 128,
+    "T-55": 129,
+    "T-62": 129,
+    "RPG-7": 120,
+    "106mm_M40_Recoilless_Rifle": 120,
+    "BGM-71_TOW": 100,
+    "BM-21_MLRS": 120,
+    "105mm_Howitzer": 120,
+    "122mm_SPG": 120,
+    "60mm_Mortar": 120,
+    "9M14_Malyutka": 100,
+    "107mm_B-11_Recoilless_Rifle": 100,
+    "M72_LAW": 36,
+    "AK-47": 12000,
+    "M113": 12000,
+}
+
 
 
 if __name__ == "__main__":
