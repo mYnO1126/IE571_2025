@@ -59,26 +59,8 @@ class Troop:  # Troop class to store troop information and actions
             for k, v in SUPPLY_DATABASE.items():
                 self.supply_stock[k] = float(v)
 
-
-
     def dead(self):
         del self  # Explicitly delete the object
-
-    # @classmethod
-    # def batch_create(cls, category, side, x_range, y_range, affiliation):
-    #     troops = []
-    #     for unit_name, count in getattr(category.value, side).items():
-    #         if unit_name not in UNIT_SPECS:
-    #             print(f"[ERROR] UNIT_SPECS에 없는 유닛명: {unit_name}")
-    #             continue
-    #         for _ in range(count):
-    #             x = np.random.uniform(*x_range)
-    #             y = np.random.uniform(*y_range)
-    #             troop = cls(unit_name, Coord(x, y, 0), affiliation=affiliation)
-    #             if not isinstance(troop, Troop):
-    #                 print(f"[ERROR] 잘못 생성된 troop: {troop}")
-    #             troops.append(troop)
-    #     return troops
 
     def assign_id(self):
         key = f"{self.team}_{self.type.value}"
@@ -112,8 +94,8 @@ class Troop:  # Troop class to store troop information and actions
     def compute_velocity(
         self, dest: Coord, battle_map: Map, current_time: float
     ) -> Velocity: # TODO: stop if in range, hour/minute check
-        # 1) 기본 속도 km/h→km/min
 
+        # 1) 기본 속도 km/h → km/min
         on_road = battle_map.is_road(self.coord.x, self.coord.y)
         base_speed = (
             self.spec.speed_road_kmh if on_road else self.spec.speed_offroad_kmh
@@ -121,8 +103,9 @@ class Troop:  # Troop class to store troop information and actions
 
         # 2) 지형 가중치
         terrain_factor = battle_map.movement_factor(self.coord.x, self.coord.y)
+
         if not np.isfinite(terrain_factor):
-            # impassable cell → 움직이지 않음
+            # impassable cell → 움직이지 않음 #TODO 방향을 돌려서 가도록 전환 필요.
             return Velocity(0,0,0)
 
         # 3) 낮/밤 가중치 (19:00–06:00 야간엔 50% 느려짐)
@@ -135,8 +118,10 @@ class Troop:  # Troop class to store troop information and actions
         # 5) 방향 단위 벡터
         dx, dy = dest.x - self.coord.x, dest.y - self.coord.y
         dist = math.hypot(dx, dy)
+
         if dist == 0:
             return Velocity(0, 0, 0)
+        
         ux, uy = dx / dist, dy / dist
 
         move = speed * TIME_STEP
@@ -148,6 +133,7 @@ class Troop:  # Troop class to store troop information and actions
         
         # move_m (m) → move_px (pixels), given 1 px = 10 m
         move_px = move_m / battle_map.resolution_m
+    
         # 로그 출력
         # direction unit vector stays the same:
         ux, uy = dx/dist, dy/dist
@@ -309,21 +295,22 @@ class Troop:  # Troop class to store troop information and actions
         self.last_ammo_check = current_time
 
     def fire(self, current_time, enemy_list, history):  # TODO: Implement firing logic
-        # ▶ 경과 분만큼 탄약 소모
-        self.consume_ammo(current_time)
+        #TODO 에러 발생
+        # # ▶ 경과 분만큼 탄약 소모
+        # self.consume_ammo(current_time)
 
-        total_ammo = self.main_ammo + self.secondary_ammo
+        # total_ammo = self.main_ammo + self.secondary_ammo
 
-        # 10 % 이하 → 5 분 금지
-        if total_ammo <= 0.1 * (
-             AMMUNITION_DATABASE[self.name].main_ammo +
-             AMMUNITION_DATABASE[self.name].secondary_ammo):
-            self.ammo_restricted_until = current_time + 5.0
+        # # 10 % 이하 → 5 분 금지
+        # if total_ammo <= 0.1 * (
+        #      AMMUNITION_DATABASE[self.name].main_ammo +
+        #      AMMUNITION_DATABASE[self.name].secondary_ammo):
+        #     self.ammo_restricted_until = current_time + 5.0
 
-        # ▶ 탄약 없거나 제한 시간이면 발사 불가
-        if total_ammo <= 0 or current_time < self.ammo_restricted_until:
-            self.next_fire_time = round(current_time + 1.0, 2)  # 1 분 뒤 재시도
-            return
+        # # ▶ 탄약 없거나 제한 시간이면 발사 불가
+        # if total_ammo <= 0 or current_time < self.ammo_restricted_until:
+        #     self.next_fire_time = round(current_time + 1.0, 2)  # 1 분 뒤 재시도
+        #     return
 
         if not self.alive:
             return
@@ -373,7 +360,7 @@ class Troop:  # Troop class to store troop information and actions
         #         result = self.pk_func(kill_rand_var)
         #     else:
         #         result = HitState.MISS
-
+        print("Result", result, self.team, self.type, self.name)
         history.add_to_battle_log(
             type_=self.type.value,
             shooter=self.id,
@@ -484,9 +471,11 @@ class TroopList:  # Troop list to manage all troops
             if troop.next_fire_time <= current_time:
                 enemies = self.get_enemy_list(troop)
                 troop.fire(current_time, enemies, history)
-        if not self.main_ammo_int_changed and not self.secondary_ammo_int_changed:
-            self.next_fire_time = round(current_time + 1.0, 2)
-            return
+        
+        #TODO: 에러 발생
+        # if not self.main_ammo_int_changed and not self.secondary_ammo_int_changed:
+        #     self.next_fire_time = round(current_time + 1.0, 2)
+        #     return
         
     def resupply(self, current_time):
         supply_trucks = [t for t in self.troops
@@ -525,22 +514,6 @@ class TroopList:  # Troop list to manage all troops
                     unit.ammo_restricted_until = current_time + 5.0
 
 
-def generate_initial_troops(placement_zones):
-    troop_list = []
-    for category in UnitComposition:
-        # BLUE 고정 방어진지
-        xr, yr, aff = placement_zones[category.name]["blue"]
-        troop_list += Troop.batch_create(category, "blue", xr, yr, aff)
-
-        # RED Reserve + E1~E4
-        # for key in ["red_reserve","red_E1","red_E2","red_E3","red_E4"]:
-        for key in ["red_reserve"]:
-            xr, yr, aff = placement_zones[category.name][key]
-            troop_list += Troop.batch_create(category, "red", xr, yr, aff)
-
-    return troop_list
-
-
 def update_troop_location(troop_list, battle_map, current_time):
     for troop in troop_list:
         if not troop.alive:
@@ -554,9 +527,10 @@ def update_troop_location(troop_list, battle_map, current_time):
         # fixed_dest 가 있으면 그쪽으로, 없으면 (target or 자기 위치)
         if troop.fixed_dest:
             dest = troop.fixed_dest
-            print(troop.fixed_dest)
+            # print(troop.fixed_dest)
         else:
             dest = troop.target.coord if troop.target else troop.coord
+            # print(dest)
 
         # dest = troop.target.coord if troop.target else troop.coord
         v = troop.compute_velocity(dest, battle_map, current_time)

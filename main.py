@@ -95,18 +95,11 @@ def main():
     # battle_map = Map(MAP_WIDTH, MAP_HEIGHT)  # Create a map of size 100x100
     battle_map = Map() #MAP_WIDTH, MAP_HEIGHT)  # Create a map of size 100x100
     print("Map Size", battle_map.dem_arr.shape)
-    timeline_index = 0
 
-    # troop_list = generate_all_troops()
-    # spawned_troops = generate_initial_troops(placement_zones = placement_zones)
-    # troop_list = TroopList(spawned_troops)
-    # # assign_target_all(current_time, troop_list)
-    # history.init_status_data(troop_list)
+    timeline_index = 0
 
     # --- PLACEMENT 전체를 순회하며 locs 채우기 ---
     used = set()
-
-    # 1) locs 필드 생성
     for team, affs in PLACEMENT.items():
         for affiliation, feat in affs.items():
             x_range, y_range = feat['loc']
@@ -147,8 +140,13 @@ def main():
                 feat['goals'].extend(goals_xyz)
 
 
+    # troop_list = generate_all_troops()
+    # spawned_troops = generate_initial_troops(placement_zones = placement_zones)
+    # troop_list = TroopList(spawned_troops)
+    # assign_target_all(current_time, troop_list)
+    # history.init_status_data(troop_list)
+
     spawned_troops = create_from_positions(PLACEMENT)
-    
     troop_list = TroopList(troop_list = spawned_troops)
 
     # assign_target_all(current_time, troop_list)
@@ -189,7 +187,8 @@ def main():
         # print(f"Current time: {current_time:.2f} min")
         # print(f"Next battle time: {next_battle_time:.2f} min")
 
-        if current_time == next_battle_time:
+        # if current_time == next_battle_time:
+        if next_battle_time <= current_time:
             troop_list.fire(current_time, history)
 
 if __name__ == "__main__":

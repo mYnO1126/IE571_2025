@@ -68,9 +68,11 @@ class History:  # Store history of troop actions and troop status
             if troop.alive:
                 self.visualization_data["time"].append(self.current_time)
                 self.visualization_data["unit"].append(troop.id)
-                self.visualization_data["x"].append(troop.coord.x)
-                self.visualization_data["y"].append(troop.coord.y)
-                self.visualization_data["z"].append(troop.coord.z)
+                self.visualization_data["x"].append(troop.coord.x) # x -> 가로축
+                # self.visualization_data["y"].append(troop.coord.y)
+                # self.visualization_data["z"].append(troop.coord.z) 
+                self.visualization_data["y"].append(troop.coord.z) # y -> 높이
+                self.visualization_data["z"].append(troop.coord.y) # z -> 세로축
 
     def get_battle_log(self):  # return battle log
         return self.battle_log
@@ -102,9 +104,11 @@ class History:  # Store history of troop actions and troop status
             for troop in troop_list:
                 if troop.id in self.status_data:
                     # Get current position
-                    x = troop.coord.x
-                    y = troop.coord.y
-                    z = troop.coord.z
+                    x = troop.coord.x # x -> 가로축
+                    # y = troop.coord.y
+                    # z = troop.coord.z
+                    y = troop.coord.z # y -> 높이
+                    z = troop.coord.y # z -> 세로축
                     data.append([time_sec, troop.id, x, y, z])
 
         df = pd.DataFrame(data, columns=["time", "unit", "x", "y", "z"])
@@ -114,10 +118,10 @@ class History:  # Store history of troop actions and troop status
     def draw_troop_positions(self, Map, troop_list, current_time, save_dir="frames"):
         # plt.figure(figsize=(16, 8))
 
+        # --- 입력 데이터 ---
         def binarize(mask):
             return (mask > 0).astype(int)
 
-        # --- 입력 데이터 ---
         dem_arr = Map.dem_arr
         road_mask = binarize(Map.road_mask)
         lake_mask = binarize(Map.lake_mask)
@@ -133,7 +137,7 @@ class History:  # Store history of troop actions and troop status
         # --- 컬러맵 정의 ---
         road_cmap = ListedColormap(['none', 'red'])
         lake_cmap = ListedColormap(['none', 'blue'])
-        river_cmap = ListedColormap(['none', 'green'])
+        wood_cmap = ListedColormap(['none', 'green'])
         stream_cmap = ListedColormap(['none', 'purple'])
 
         # --- 시각화 ---
@@ -142,8 +146,11 @@ class History:  # Store history of troop actions and troop status
 
         ax.imshow(road_mask, cmap=road_cmap, alpha=0.6, origin="upper")
         ax.imshow(lake_mask, cmap=lake_cmap, alpha=0.5, origin="upper")
-        ax.imshow(wood_mask, cmap=river_cmap, alpha=0.5, origin="upper")
+        ax.imshow(wood_mask, cmap=wood_cmap, alpha=0.5, origin="upper")
         ax.imshow(stream_mask, cmap=stream_cmap, alpha=0.5, origin="upper")
+        # --- 지형 시각화 추가 ---
+
+
         for troop in troop_list:
             if not troop.alive:
                 continue
@@ -165,6 +172,8 @@ class History:  # Store history of troop actions and troop status
         # plt.ylabel("Y")
         # plt.grid(True)
         # --- 설정 ---
+
+        # ----지형 시각화 추가 ----
         ax.set_xlim(0, W)
         ax.set_ylim(H, 0)
         ax.set_title(f"Troop Positions at T={current_time:.0f} min")
@@ -182,7 +191,7 @@ class History:  # Store history of troop actions and troop status
             Patch(facecolor='red', edgecolor='k', label='Red Troop'),
         ]
         ax.legend(handles=legend_elements, loc='lower right')
-
+        # ----지형 시각화 추가 ----
 
         plt.tight_layout()
         plt.savefig(f"{save_dir}/frame_{int(current_time):05d}.png")
