@@ -124,7 +124,7 @@ def main():
         # print(f"Current time: {current_time:.2f} min")
         # print(f"Next battle time: {next_battle_time:.2f} min")
 
-        if current_time == next_battle_time:
+        if next_battle_time <= current_time:
             troop_list.fire(current_time, history)
 
 if __name__ == "__main__":
