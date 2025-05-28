@@ -122,6 +122,10 @@ class Troop:  # Troop class to store troop information and actions
         if dist == 0:
             return Velocity(0, 0, 0)
         
+        if dist < self.range_km:
+            # 목표 지점이 사거리 이내면 멈춤
+            return Velocity(0, 0, 0)
+        
         ux, uy = dx / dist, dy / dist
 
         move = speed * TIME_STEP

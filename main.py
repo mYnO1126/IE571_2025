@@ -48,7 +48,7 @@ def handle_sigint(signum, frame):
 
 # def handle_event(event, troop_list, battle_map):
 
-#     return 
+#     return
 #     # if event.type == "reinforcement":
 #     #     # event.params에 증원 정보가 들어 있다고 가정
 #     #     troop_list.add_troops(event.params)
@@ -78,7 +78,6 @@ def handle_event(event, troop_list, battle_map):
     print(f">>> After event {event.description}:")
     # print("    active:",  [(t.id, t.team, t.phase) for t in troop_list.troops if t.active])
     # print("    can_move:",[(t.id, t.team, t.phase) for t in troop_list.troops if t.can_move])
-
 
 
 def main():
@@ -141,7 +140,6 @@ def main():
                 ]
                 feat['goals'].extend(goals_xyz)
 
-
     # troop_list = generate_all_troops()
     # spawned_troops = generate_initial_troops(placement_zones = placement_zones)
     # troop_list = TroopList(spawned_troops)
@@ -153,7 +151,7 @@ def main():
 
     # assign_target_all(current_time, troop_list)
     history.init_status_data(troop_list)
-    
+
     while True:
         if timeline_index < len(TIMELINE):
             event = TIMELINE[timeline_index]
@@ -165,7 +163,7 @@ def main():
         if hist_record_time==1.0:
             history.add_to_status_data(troop_list)  
             hist_record_time = 0.0
-            history.draw_troop_positions(battle_map, troop_list.troops, current_time, save_dir=res_loc+"/frames")
+            history.draw_troop_positions(battle_map, troop_list, current_time, save_dir=res_loc+"/frames")
 
         troop_list.remove_dead_troops()
 

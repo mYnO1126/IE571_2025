@@ -1,6 +1,9 @@
 # history.py
+import matplotlib
 
+matplotlib.use("Agg")
 import pandas as pd
+import numpy as np
 import matplotlib.pyplot as plt
 from matplotlib.colors import ListedColormap
 from matplotlib.patches import Patch
@@ -70,7 +73,7 @@ class History:  # Store history of troop actions and troop status
                 self.visualization_data["unit"].append(troop.id)
                 self.visualization_data["x"].append(troop.coord.x) # x -> 가로축
                 # self.visualization_data["y"].append(troop.coord.y)
-                # self.visualization_data["z"].append(troop.coord.z) 
+                # self.visualization_data["z"].append(troop.coord.z)
                 self.visualization_data["y"].append(troop.coord.z) # y -> 높이
                 self.visualization_data["z"].append(troop.coord.y) # z -> 세로축
 
@@ -115,7 +118,7 @@ class History:  # Store history of troop actions and troop status
         df.to_csv(filename, index=False)
         print("Status data saved to status_data.csv")
 
-    def draw_troop_positions(self, Map, troop_list, current_time, save_dir="frames"):
+    def draw_troop_positions(self, Map, troop_list: TroopList, current_time, save_dir="frames"):
         # plt.figure(figsize=(16, 8))
 
         # --- 입력 데이터 ---
@@ -150,15 +153,14 @@ class History:  # Store history of troop actions and troop status
         ax.imshow(stream_mask, cmap=stream_cmap, alpha=0.5, origin="upper")
         # --- 지형 시각화 추가 ---
 
-
-        for troop in troop_list:
+        for troop in troop_list.troops:
             if not troop.alive:
                 continue
             color = "blue" if troop.team == "blue" else "red"
             marker = "o" if troop.type == UnitType.TANK else "s"
-            plt.scatter(
-                troop.coord.x,
-                troop.coord.y,
+            ax.scatter(
+                np.float32(troop.coord.x),
+                np.float32(troop.coord.y),
                 c=color,
                 marker=marker,
                 label=troop.id,
@@ -193,7 +195,7 @@ class History:  # Store history of troop actions and troop status
         ax.legend(handles=legend_elements, loc='lower right')
         # ----지형 시각화 추가 ----
 
-        plt.tight_layout()
+        fig.tight_layout()
         plt.savefig(f"{save_dir}/frame_{int(current_time):05d}.png")
         plt.close()
 
