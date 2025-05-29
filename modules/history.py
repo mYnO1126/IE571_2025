@@ -25,14 +25,14 @@ class History:  # Store history of troop actions and troop status
             raise ValueError("Time cannot be set to a past value.")
         self.current_time = time
 
-    def init_status_data(self, troop_list: TroopList):  # initialize status data
+    def init_status_data(self, troop_list: TroopList, min_altitude, height):  # initialize status data
         troops = troop_list.troops
         for troop in troops:
             if f"{troop.id}_status" not in self.status_data:
                 self.status_data[f"{troop.id}_status"] = []
                 self.status_data[f"{troop.id}_target"] = []
                 self.status_data[f"{troop.id}_fire_time"] = []
-        self.add_to_status_data(troop_list)
+        self.add_to_status_data(troop_list, min_altitude, height)
 
     def add_to_battle_log(
         self, type_, shooter, target, target_type, result
@@ -41,7 +41,7 @@ class History:  # Store history of troop actions and troop status
             [self.current_time, shooter, type_, target, target_type, result]
         )
 
-    def add_to_status_data(self, troop_list: TroopList):  # add to status data
+    def add_to_status_data(self, troop_list: TroopList, min_altitude, height):  # add to status data
         troops = troop_list.troops
         troop_ids = troop_list.troop_ids
 
@@ -71,8 +71,8 @@ class History:  # Store history of troop actions and troop status
                 self.visualization_data["x"].append(troop.coord.x) # x -> 가로축
                 # self.visualization_data["y"].append(troop.coord.y)
                 # self.visualization_data["z"].append(troop.coord.z) 
-                self.visualization_data["y"].append(troop.coord.z) # y -> 높이
-                self.visualization_data["z"].append(troop.coord.y) # z -> 세로축
+                self.visualization_data["y"].append(troop.coord.z - min_altitude) # y -> 높이
+                self.visualization_data["z"].append(height - troop.coord.y) # z -> 세로축
 
     def get_battle_log(self):  # return battle log
         return self.battle_log
@@ -96,7 +96,7 @@ class History:  # Store history of troop actions and troop status
         print("Visualization data saved to visualization_data.csv")
 
     def save_status_data_new(
-        self, troop_list, filename="status_data.csv"
+        self, troop_list, battle_map, filename="status_data.csv"
     ):  # save status data to file
         data = []
         for t_idx, time in enumerate(self.status_data["time"]):
@@ -107,8 +107,8 @@ class History:  # Store history of troop actions and troop status
                     x = troop.coord.x # x -> 가로축
                     # y = troop.coord.y
                     # z = troop.coord.z
-                    y = troop.coord.z # y -> 높이
-                    z = troop.coord.y # z -> 세로축
+                    y = troop.coord.z - battle_map.min_altitude # y -> 높이
+                    z = battle_map.height - troop.coord.y # z -> 세로축
                     data.append([time_sec, troop.id, x, y, z])
 
         df = pd.DataFrame(data, columns=["time", "unit", "x", "y", "z"])
