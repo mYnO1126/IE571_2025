@@ -50,7 +50,8 @@ class Map:  # Map class to store map information
         # crs           = CRS.from_string(crs_str)
 
         self.height, self.width = self.dem_arr.shape
-
+        self.min_altitude = min([min(s) for s in self.dem_arr])
+        
         # terrain_cost 맵 (필요에 따라 값 조정)
         # 0: 평지, 1: 험지, 2: 도로, 3: 호수, 4: 숲, 5: 개울
         self.terrain_cost = {
