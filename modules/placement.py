@@ -26,7 +26,6 @@ def grid_sample_no_overlap(x_range, y_range, N, min_gap, used):
     return [[x, y, 0] for x, y in chosen]
 
 
-
 PLACEMENT = {
     'blue':{ # x, y, color
         '74전차대대_1중대':{
@@ -59,7 +58,7 @@ PLACEMENT = {
                 },
             'phase': 'P1'
         },
-        '74전차대대_1중대':{
+        '74전차대대_2중대':{
             'loc': [[250, 275], [180, 240]], 
             'comp': {
                 "Sho't_Kal":5
@@ -83,24 +82,24 @@ PLACEMENT = {
             }
     },
     'red':{
-        '85보병여단_1보병대대_1중대': {
-            'loc': [[650, 700], [350, 420]], 
-            'comp':{
-                "AK-47":90,
-                "RPG-7":6,
-                "107mm_B-11_Recoilless_Rifle":1
-                }, # 80 50
-            'phase': 'P1-1'
-        },
-        '85보병여단_2보병대대_4중대': {
-            'loc': [[700, 750], [350, 420]], 
-            'comp': {
-                "AK-47":90,
-                "RPG-7":6,
-                "107mm_B-11_Recoilless_Rifle":1
-                },
-                'phase': 'P1-1'
-        },
+        # '85보병여단_1보병대대_1중대': {
+        #     'loc': [[650, 700], [350, 420]], 
+        #     'comp':{
+        #         "AK-47":90,
+        #         "RPG-7":6,
+        #         "107mm_B-11_Recoilless_Rifle":1
+        #         }, # 80 50
+        #     'phase': 'P1-1'
+        # },
+        # '85보병여단_2보병대대_4중대': {
+        #     'loc': [[700, 750], [350, 420]], 
+        #     'comp': {
+        #         "AK-47":90,
+        #         "RPG-7":6,
+        #         "107mm_B-11_Recoilless_Rifle":1
+        #         },
+        #         'phase': 'P1-1'
+        # },
         '121기계화보병여단_전차중대': {
             'loc': [[620, 670], [350, 400]], 
             'comp': {
