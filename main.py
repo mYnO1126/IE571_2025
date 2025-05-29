@@ -152,7 +152,7 @@ def main():
     troop_list = TroopList(troop_list = spawned_troops)
 
     # assign_target_all(current_time, troop_list)
-    history.init_status_data(troop_list)
+    history.init_status_data(troop_list, battle_map.min_altitude, battle_map.height)
     
     while True:
         if timeline_index < len(TIMELINE):
@@ -163,7 +163,7 @@ def main():
                 timeline_index += 1
 
         if hist_record_time==1.0:
-            history.add_to_status_data(troop_list)  
+            history.add_to_status_data(troop_list, battle_map.min_altitude, battle_map.height)
             hist_record_time = 0.0
             history.draw_troop_positions(battle_map, troop_list.troops, current_time, save_dir=res_loc+"/frames")
 
