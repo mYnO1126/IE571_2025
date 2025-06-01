@@ -25,14 +25,14 @@ class History:  # Store history of troop actions and troop status
             raise ValueError("Time cannot be set to a past value.")
         self.current_time = time
 
-    def init_status_data(self, troop_list: TroopList, min_altitude, height):  # initialize status data
+    def init_status_data(self, troop_list: TroopList, reference_altitude, height):  # initialize status data
         troops = troop_list.troops
         for troop in troops:
             if f"{troop.id}_status" not in self.status_data:
                 self.status_data[f"{troop.id}_status"] = []
                 self.status_data[f"{troop.id}_target"] = []
                 self.status_data[f"{troop.id}_fire_time"] = []
-        self.add_to_status_data(troop_list, min_altitude, height)
+        self.add_to_status_data(troop_list, reference_altitude, height)
 
     def add_to_battle_log(
         self, type_, shooter, target, target_type, result
@@ -41,7 +41,7 @@ class History:  # Store history of troop actions and troop status
             [self.current_time, shooter, type_, target, target_type, result]
         )
 
-    def add_to_status_data(self, troop_list: TroopList, min_altitude, height):  # add to status data
+    def add_to_status_data(self, troop_list: TroopList, reference_altitude, height):  # add to status data
         troops = troop_list.troops
         troop_ids = troop_list.troop_ids
 
@@ -71,7 +71,7 @@ class History:  # Store history of troop actions and troop status
                 self.visualization_data["x"].append(troop.coord.x) # x -> 가로축
                 # self.visualization_data["y"].append(troop.coord.y)
                 # self.visualization_data["z"].append(troop.coord.z) 
-                self.visualization_data["y"].append(troop.coord.z - min_altitude) # y -> 높이
+                self.visualization_data["y"].append(troop.coord.z - reference_altitude) # y -> 높이
                 self.visualization_data["z"].append(height - troop.coord.y) # z -> 세로축
 
     def get_battle_log(self):  # return battle log
@@ -107,7 +107,7 @@ class History:  # Store history of troop actions and troop status
                     x = troop.coord.x # x -> 가로축
                     # y = troop.coord.y
                     # z = troop.coord.z
-                    y = troop.coord.z - battle_map.min_altitude # y -> 높이
+                    y = troop.coord.z - battle_map.reference_altitude # y -> 높이
                     z = battle_map.height - troop.coord.y # z -> 세로축
                     data.append([time_sec, troop.id, x, y, z])
 
@@ -155,6 +155,7 @@ class History:  # Store history of troop actions and troop status
             if not troop.alive:
                 continue
             color = "blue" if troop.team == "blue" else "red"
+            color = "grey" if not troop.active else color
             marker = "o" if troop.type == UnitType.TANK else "s"
             plt.scatter(
                 troop.coord.x,
