@@ -66,7 +66,7 @@ class Troop:  # Troop class to store troop information and actions
         self.path = []  # A* 경로
         self.path_index = 0
         self.last_pathfind_time = 0
-        self.pathfind_cooldown = 5.0  # 5분마다 경로 재계산
+        self.pathfind_cooldown = 10.0  # 5분마다 경로 재계산
         #!TEMP <<<<
 
     def dead(self):
@@ -88,12 +88,26 @@ class Troop:  # Troop class to store troop information and actions
     def update_velocity(self, new_velocity):  # Update velocity
         self.velocity = new_velocity
 
-    def get_distance(self, other_troop):  # Calculate distance to another troop
-        return math.sqrt(
-            (self.coord.x - other_troop.coord.x) ** 2
-            + (self.coord.y - other_troop.coord.y) ** 2
-            + (self.coord.z - other_troop.coord.z) ** 2
-        ) * 0.01 # pixel -> km 변환 (10m = 0.01km)
+    # def get_distance(self, other_troop):  # Calculate distance to another troop
+    #     return math.sqrt(
+    #         (self.coord.x - other_troop.coord.x) ** 2
+    #         + (self.coord.y - other_troop.coord.y) ** 2
+    #         + (self.coord.z - other_troop.coord.z) ** 2
+    #     ) * 0.01 # pixel -> km 변환 (10m = 0.01km)
+    
+    def get_distance(self, other_troop):
+        """최적화된 3D 거리 계산 - 권장 버전"""
+        dx = (self.coord.x - other_troop.coord.x) * 10
+        dy = (self.coord.y - other_troop.coord.y) * 10
+        dz = self.coord.z - other_troop.coord.z
+        return (dx*dx + dy*dy + dz*dz) ** 0.5 * 0.001
+
+
+    def get_distance_fast(self, other_troop):
+        # 제곱근 연산 제거한 버전
+        dx = self.coord.x - other_troop.coord.x
+        dy = self.coord.y - other_troop.coord.y
+        return ((dx*dx + dy*dy) ** 0.5) * 0.01  # ** 0.5가 sqrt()보다 빠름
 
     def get_t_a(self):
         return self.target_delay_func(0) if self.target else 0
@@ -203,6 +217,15 @@ class Troop:  # Troop class to store troop information and actions
     def assign_target(
         self, current_time, enemy_list
     ):  # TODO: Implement target assignment logic, indirect fire logic
+    
+        #!TEMP 이미 좋은 타겟이 있으면 그대로 유지 >>>>
+        if (self.target and self.target.alive and 
+            getattr(self.target, 'active', False)):
+            distance = self.get_distance(self.target)
+            if distance <= self.range_km:
+                return  # 기존 타겟 유지 - 계산 생략!        
+        #!TEMP 이미 좋은 타겟이 있으면 그대로 유지 <<<<
+        
         # 밤 시간대: 19:00 ~ 06:00
         is_night = 360 <= current_time % 1440 <= 1080
 
@@ -215,13 +238,15 @@ class Troop:  # Troop class to store troop information and actions
                 if e.status == UnitStatus.HIDDEN:
                     continue
                 
-                # ✅ 추가: active=False인 적은 타겟 대상에서 제외
+                #!TEMP 추가: active=False인 적은 타겟 대상에서 제외
                 if not getattr(e, 'active', False):
                     continue
                 
                 distance = self.get_distance(e)
-                # if distance > self.range_km:  #TODO: 사거리 제한
-                #     continue
+                
+                if distance > self.range_km:  #TODO: 사거리 제한
+                    continue
+                
                 candidates.append((e, distance, 1))
 
             if not candidates:
@@ -250,7 +275,7 @@ class Troop:  # Troop class to store troop information and actions
             # print("no more enemy left")
             return
         
-        # ▶ 경과 시간만큼 탄약을 자동 소모
+    # ▶ 경과 시간만큼 탄약을 자동 소모
     def consume_ammo(self, current_time):
         dt = current_time - self.last_ammo_check
         if dt <= 0:
