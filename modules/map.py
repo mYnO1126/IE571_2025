@@ -9,7 +9,7 @@ from .unit_definitions import UnitType #, UnitStatus, UnitType, UnitComposition,
 
 
 # MAX_TIME = 100.0 # 최대 시뮬레이션 시간 (분 단위) #for testingfrom typing import List, Tuple
-MAX_TIME = 2880.0 # 500.0  # 최대 시뮬레이션 시간 (분 단위) 
+MAX_TIME = 500 # 2880.0 # 500.0  # 최대 시뮬레이션 시간 (분 단위) 
 # TIME_STEP = 0.01 # 시뮬레이션 시간 간격 (분 단위)
 TIME_STEP = 1.0
 # MAP_WIDTH = 30  # 맵의 너비
@@ -66,11 +66,11 @@ class Map:  # Map class to store map information
         # 0: 평지, 1: 험지, 2: 도로, 3: 호수, 4: 숲, 5: 개울
         self.terrain_cost = {
             0: 1.0,  # plain
-            1: 3.0,  # rugged (slope 10)
-            2: 7.0,  # rugged (slope 15)
+            1: 2.0,  # rugged (slope 10)
+            2: 3.0,  # rugged (slope 15)
             3: np.inf,  # rugged (slope 20)
             4: np.inf,  # rugged (slope 30)
-            5: 0.5,  # road
+            5: 0.8,  # road
             6: np.inf,  # lake
             7: 1.5,  # wood (forest)
             8: 2.0,  # stream (smaller water)

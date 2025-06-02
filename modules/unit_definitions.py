@@ -343,7 +343,7 @@ UNIT_SPECS = {  # TODO: unit ph_func, pk_func 추가
         target_delay_func=triangular_distribution(1.0, 0.5),
         fire_time_func=constant_dist_func(0.8),
         speed_road_kmh=0.00001,
-        speed_offroad_kmh=0.00001
+        speed_offroad_kmh=3, #0.00001
     ),
     "105mm_Howitzer": UnitSpec(
         name="105mm_Howitzer",
@@ -401,8 +401,8 @@ UNIT_SPECS = {  # TODO: unit ph_func, pk_func 추가
         # pk_func=simple_pk_func(0.85),
         target_delay_func=triangular_distribution(1.0, 0.5),
         fire_time_func=constant_dist_func(1.3),
-        speed_road_kmh=0.00001,
-        speed_offroad_kmh=0.00001
+        # speed_road_kmh=0.00001,
+        # speed_offroad_kmh= 0.00001
     ),
     "106mm_M40_Recoilless_Rifle": UnitSpec(
         name="106mm_M40_Recoilless_Rifle",
@@ -423,8 +423,8 @@ UNIT_SPECS = {  # TODO: unit ph_func, pk_func 추가
         pk_func=direct_fire_pk_func(),
         target_delay_func=triangular_distribution(2.0, 0.5),
         fire_time_func=constant_dist_func(1.0),
-        speed_road_kmh=0.00001,
-        speed_offroad_kmh=0.00001
+        # speed_road_kmh=0.00001,
+        # speed_offroad_kmh=0.00001
     ),
     "M72_LAW": UnitSpec(
         name="M72_LAW",
@@ -436,8 +436,8 @@ UNIT_SPECS = {  # TODO: unit ph_func, pk_func 추가
         # pk_func=simple_pk_func(0.6),
         target_delay_func=triangular_distribution(1.0, 0.5),
         fire_time_func=constant_dist_func(0.8), #TODO: 재장전 없음
-        speed_road_kmh=0.00001,
-        speed_offroad_kmh=0.00001
+        # speed_road_kmh=0.00001,
+        # speed_offroad_kmh=0.00001
     ),
     "RPG-7": UnitSpec(
         name="RPG-7",
@@ -449,8 +449,8 @@ UNIT_SPECS = {  # TODO: unit ph_func, pk_func 추가
         # pk_func=simple_pk_func(0.65),
         target_delay_func=triangular_distribution(0.5, 0.17),
         fire_time_func=constant_dist_func(0.7),
-        speed_road_kmh=0.00001,
-        speed_offroad_kmh=0.00001       
+        # speed_road_kmh=0.00001,
+        # speed_offroad_kmh=0.00001       
     ),
     "M113": UnitSpec(
         name="M113",

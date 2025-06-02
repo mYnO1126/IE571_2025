@@ -82,10 +82,10 @@ def handle_sigint(signum, frame):
 def handle_event(event, troop_list, battle_map):
     global active_on, move_on
 
-    # # 1) 모든 부대 플래그 초기화
-    # for t in troop_list.troops:
-    #     t.active   = False
-    #     t.can_move = False
+    # 1) 모든 부대 플래그 초기화
+    for t in troop_list.troops:
+        t.active   = False
+        t.can_move = False
 
     # 2) active_on 에 속하는 부대만 active=True
     for team, phase in getattr(event, 'active_on', []):
@@ -103,7 +103,9 @@ def handle_event(event, troop_list, battle_map):
     # print("    active:",  [(t.id, t.team, t.phase) for t in troop_list.troops if t.active])
     # print("    can_move:",[(t.id, t.team, t.phase) for t in troop_list.troops if t.can_move])
 
-
+    # 이벤트 후 즉시 타겟 재할당
+    print(f"Re-assigning targets...")
+    troop_list.assign_targets(event.time)
 
 def main():
     # Simulation parameters
@@ -219,6 +221,13 @@ def main():
 
         if next_battle_time <= current_time:
             troop_list.fire(current_time, history)
+
+        # 10분마다 상태 출력
+        if current_time % 10 == 0:
+            blue_active = len([t for t in troop_list.blue_troops if t.active and t.alive])
+            red_active = len([t for t in troop_list.red_troops if t.active and t.alive])
+            print(f"시간 {current_time}: Blue 활성화 {blue_active}개, Red 활성화 {red_active}개")
+            print(troop_list.get_combat_status())
 
 if __name__ == "__main__":
     main()
