@@ -224,7 +224,7 @@ class History:  # Store history of troop actions and troop status
                           linestyle='--', alpha=0.6, label='Path')
             )
 
-        ax.legend(handles=legend_elements, loc='lower right', bbox_to_anchor=(1.0, 1.0))
+        ax.legend(handles=legend_elements, loc='lower right', bbox_to_anchor=(1.2, 0.0))
         # ----지형 시각화 추가 ----
 
         plt.tight_layout()
