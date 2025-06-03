@@ -45,7 +45,7 @@ def create_from_positions(unit_positions):
             
             if goals_list:
                 max_destinations = min(3, len(goals_list))
-                available_destinations = goals_list[:max_destinations]
+                available_destinations = random.sample(goals_list, max_destinations)
                 # print(f"{affiliation}: {len(available_destinations)}개 목적지 중 랜덤 선택")
 
             for comp, (x, y, z) in zip(comp_list, feat['locs']):
@@ -60,9 +60,6 @@ def create_from_positions(unit_positions):
                           fixed_dest=fixed_dest)
                 troops.append(t)
     return troops
-
-      
-
 
 
 def handle_sigint(signum, frame):
@@ -158,7 +155,7 @@ def main():
             # 수정된 코드 (3개만 생성)
             if has_goal:
                 min_gap = 6
-                num_destinations = 3  # 3개만 생성
+                num_destinations = 10  # 3개만 생성
                 
                 goals = grid_sample_no_overlap(
                     gx_range, gy_range, num_destinations,
@@ -228,6 +225,7 @@ def main():
             red_active = len([t for t in troop_list.red_troops if t.active and t.alive])
             print(f"시간 {current_time}: Blue 활성화 {blue_active}개, Red 활성화 {red_active}개")
             print(troop_list.get_combat_status())
+            history.create_tactical_overview(battle_map, troop_list.troops, current_time, save_dir=res_loc+"/frames_tactics")
 
 if __name__ == "__main__":
     main()

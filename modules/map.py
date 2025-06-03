@@ -9,7 +9,7 @@ from .unit_definitions import UnitType #, UnitStatus, UnitType, UnitComposition,
 
 
 # MAX_TIME = 100.0 # 최대 시뮬레이션 시간 (분 단위) #for testingfrom typing import List, Tuple
-MAX_TIME = 500 # 2880.0 # 500.0  # 최대 시뮬레이션 시간 (분 단위) 
+MAX_TIME = 300 # 2880.0 # 500.0  # 최대 시뮬레이션 시간 (분 단위) 
 # TIME_STEP = 0.01 # 시뮬레이션 시간 간격 (분 단위)
 TIME_STEP = 1.0
 # MAP_WIDTH = 30  # 맵의 너비
@@ -66,36 +66,36 @@ class Map:  # Map class to store map information
         # 0: 평지, 1: 험지, 2: 도로, 3: 호수, 4: 숲, 5: 개울
         self.terrain_cost = {
             0: 1.0,  # plain
-            1: 2.0,  # rugged (slope 10)
-            2: 3.0,  # rugged (slope 15)
-            3: np.inf,  # rugged (slope 20)
-            4: np.inf,  # rugged (slope 30)
+            1: 1.3,  # rugged (slope 10)
+            2: 2.5,  # rugged (slope 15)
+            3: 5.0,  # rugged (slope 20)
+            4: 15.0,  # rugged (slope 30)
             5: 0.8,  # road
             6: np.inf,  # lake
-            7: 1.5,  # wood (forest)
-            8: 2.0,  # stream (smaller water)
+            7: 1.8,  # wood (forest)
+            8: 2.5,  # stream (smaller water)
         }
 
         # 1) 빈 grid 생성 (height x width)
-        self.grid = np.zeros((self.height, self.width), dtype=int)
+        self.grid = np.ones((self.height, self.width), dtype=float)
 
         # 2) slope 기준으로 험지 마킹 (optional)
         slope_threshold = 15.0  # degree 단위 예시 값
-        self.grid[self.slope_arr > slope_threshold] = 1
+        self.grid[self.slope_arr > slope_threshold] *= self.terrain_cost[1]
         # 2) slope 기준으로 험지 마킹 (optional)
         slope_threshold = 20.0  # degree 단위 예시 값
-        self.grid[self.slope_arr > slope_threshold] = 2
+        self.grid[self.slope_arr > slope_threshold] *= self.terrain_cost[2]
         slope_threshold = 25.0  # degree 단위 예시 값
-        self.grid[self.slope_arr > slope_threshold] = 3
+        self.grid[self.slope_arr > slope_threshold] *= self.terrain_cost[3]
         slope_threshold = 30.0  # degree 단위 예시 값
-        self.grid[self.slope_arr > slope_threshold] = 4
+        self.grid[self.slope_arr > slope_threshold] *= self.terrain_cost[4]
 
         # 3) 도로, 호수, 숲, 개울 덮어쓰기
         #    (마스크가 True/1인 곳에 해당 코드 적용)
-        self.grid[self.road_mask.astype(bool)]   = 5
-        self.grid[self.lake_mask.astype(bool)]   = 6
-        self.grid[self.wood_mask.astype(bool)]   = 7
-        self.grid[self.stream_mask.astype(bool)] = 8
+        self.grid[self.road_mask.astype(bool)]   *= self.terrain_cost[5]
+        self.grid[self.lake_mask.astype(bool)]   *= self.terrain_cost[6] #lask = np.inf
+        self.grid[self.wood_mask.astype(bool)]   *= self.terrain_cost[7]
+        self.grid[self.stream_mask.astype(bool)] *= self.terrain_cost[8]
         
         #!TEMP 비용 맵과 플로우 필드 생성 >>>>
         self.cost_map = self.build_cost_map()
@@ -133,9 +133,9 @@ class Map:  # Map class to store map information
         """8방향 이웃 셀과 이동 비용 반환"""
         neighbors = []
         directions = [
-            (-1, -1, 1.414), (-1, 0, 1.0), (-1, 1, 1.414),
+            (-1, -1, 1.15), (-1, 0, 1.0), (-1, 1, 1.15),
             (0, -1, 1.0),                   (0, 1, 1.0),
-            (1, -1, 1.414),  (1, 0, 1.0),  (1, 1, 1.414)
+            (1, -1, 1.15),  (1, 0, 1.0),  (1, 1, 1.15)
         ]
         
         for dx, dy, base_dist in directions:
@@ -186,11 +186,14 @@ class Map:  # Map class to store map information
 
     def movement_factor(self, x, y):
         xi, yi = int(x), int(y)
-        code = (
-            self.grid[yi, xi] if (0 <= xi < self.width and 0 <= yi < self.height) else 0
-        )
-        return self.terrain_cost.get(code, 1.0)
-    
+        # code = (
+        #     self.grid[yi, xi] if (0 <= xi < self.width and 0 <= yi < self.height) else 0
+        # )
+        # # return self.terrain_cost.get(code, 1.0)
+        if (0 <= xi < self.width and 0 <= yi < self.height):
+            return self.grid[yi, xi]
+        else:
+            return 1.0    
     # def get_terrain(self, x, y):  # Get terrain type at (x, y)
     #     if 0 <= x < self.width and 0 <= y < self.height:
     #         return self.grid[x][y]
@@ -199,23 +202,6 @@ class Map:  # Map class to store map information
     # def is_road(self, x, y):
     #     xi, yi = int(x), int(y)
     #     return 0 <= xi < self.width and 0 <= yi < self.height and self.grid[xi, yi] == 2
-
-    # def local_mask_density(self, mask, x, y, radius=1) -> float:
-    #     """
-    #     주어진 마스크 배열(mask: 2D boolean)에서 근방 밀도 계산
-    #     """
-    #     xi, yi = int(x), int(y)
-    #     x0, x1 = max(0, xi-radius), min(self.width, xi+radius+1)
-    #     y0, y1 = max(0, yi-radius), min(self.height, yi+radius+1)
-    #     window = mask[y0:y1, x0:x1]
-    #     return window.mean() if window.size else 0.0
-
-    # def wood_density(self,x,y,radius=1)->float:
-    #     i,j=int(y),int(x)
-    #     y0,y1=max(0,i-radius),min(self.height,i+radius+1)
-    #     x0,x1=max(0,j-radius),min(self.width,j+radius+1)
-    #     window=self.wood_mask[y0:y1,x0:x1]
-    #     return float(window.mean()) if window.size else 0.0
         
 #!TEMP >>>>
 def astar_pathfinding(battle_map: Map, start: Tuple[int, int], goal: Tuple[int, int]) -> List[Tuple[int, int]]:
@@ -254,8 +240,54 @@ def astar_pathfinding(battle_map: Map, start: Tuple[int, int], goal: Tuple[int, 
     
     return []  # 경로를 찾을 수 없음
 
+# def build_flow_field(battle_map: Map, goal: Tuple[int, int]) -> np.ndarray:
+#     """플로우 필드 생성 - 모든 셀에서 목표로의 최적 방향"""
+#     h, w = battle_map.height, battle_map.width
+#     flow_field = np.zeros((h, w, 2), dtype=float)
+#     distance_field = np.full((h, w), np.inf)
+    
+#     # Dijkstra 알고리즘으로 최단 거리 계산
+#     pq = []
+#     goal_x, goal_y = goal
+#     distance_field[goal_y, goal_x] = 0
+#     heappush(pq, (0, goal_x, goal_y))
+    
+#     while pq:
+#         dist, x, y = heappop(pq)
+        
+#         if dist > distance_field[y, x]:
+#             continue
+            
+#         for nx, ny, cost in battle_map.get_neighbors(x, y):
+#             new_dist = dist + cost
+#             if new_dist < distance_field[ny, nx]:
+#                 distance_field[ny, nx] = new_dist
+#                 heappush(pq, (new_dist, nx, ny))
+    
+#     # 각 셀에서 가장 가까운 이웃으로의 방향 계산
+#     for y in range(h):
+#         for x in range(w):
+#             if distance_field[y, x] == np.inf:
+#                 continue
+                
+#             best_dir = (0, 0)
+#             best_dist = distance_field[y, x]
+            
+#             for nx, ny, _ in battle_map.get_neighbors(x, y):
+#                 if distance_field[ny, nx] < best_dist:
+#                     best_dist = distance_field[ny, nx]
+#                     best_dir = (nx - x, ny - y)
+            
+#             # 방향 벡터 정규화
+#             if best_dir != (0, 0):
+#                 length = math.sqrt(best_dir[0]**2 + best_dir[1]**2)
+#                 flow_field[y, x] = [best_dir[0]/length, best_dir[1]/length]
+    
+#     return flow_field
+
 def build_flow_field(battle_map: Map, goal: Tuple[int, int]) -> np.ndarray:
-    """플로우 필드 생성 - 모든 셀에서 목표로의 최적 방향"""
+
+    """🟢 개선된 플로우 필드 생성"""
     h, w = battle_map.height, battle_map.width
     flow_field = np.zeros((h, w, 2), dtype=float)
     distance_field = np.full((h, w), np.inf)
@@ -278,24 +310,77 @@ def build_flow_field(battle_map: Map, goal: Tuple[int, int]) -> np.ndarray:
                 distance_field[ny, nx] = new_dist
                 heappush(pq, (new_dist, nx, ny))
     
-    # 각 셀에서 가장 가까운 이웃으로의 방향 계산
+    # 🟢 개선된 방향 계산 - 더 부드러운 방향 벡터
     for y in range(h):
         for x in range(w):
             if distance_field[y, x] == np.inf:
                 continue
+            
+            # # 🟢 그래디언트 기반 방향 계산 (더 부드러움)
+            # grad_x, grad_y = 0, 0
+            
+            # 🎯 핵심 수정: 목적지로의 직선 방향을 우선 고려
+            direct_dx = goal_x - x
+            direct_dy = goal_y - y
+            direct_dist = math.sqrt(direct_dx**2 + direct_dy**2)
+
+            if direct_dist == 0:
+                continue
+
+            # 직선 방향 단위 벡터
+            direct_ux = direct_dx / direct_dist
+            direct_uy = direct_dy / direct_dist
+            
+            # 🔧 그래디언트 기반 방향 계산
+            grad_x, grad_y = 0, 0
+            weight_sum = 0
+
+            # 주변 8방향의 거리 차이로 그래디언트 계산
+            for dx in [-1, 0, 1]:
+                for dy in [-1, 0, 1]:
+                    if dx == 0 and dy == 0:
+                        continue
+                    
+                    nx, ny = x + dx, y + dy
+                    if 0 <= nx < w and 0 <= ny < h:
+                        if distance_field[ny, nx] < distance_field[y, x]:
+                            weight = 1.0 / max(1, abs(dx) + abs(dy))  # 대각선은 가중치 낮춤
+                            grad_x += dx * weight
+                            grad_y += dy * weight
+                            weight_sum += weight
+
+            # # 방향 벡터 정규화
+            # if grad_x != 0 or grad_y != 0:
+            #     length = math.sqrt(grad_x**2 + grad_y**2)
+            #     flow_field[y, x] = [grad_x/length, grad_y/length]
+
+            # 그래디언트 방향 계산
+            if weight_sum > 0:
+                grad_x /= weight_sum
+                grad_y /= weight_sum
+                grad_length = math.sqrt(grad_x**2 + grad_y**2)
                 
-            best_dir = (0, 0)
-            best_dist = distance_field[y, x]
-            
-            for nx, ny, _ in battle_map.get_neighbors(x, y):
-                if distance_field[ny, nx] < best_dist:
-                    best_dist = distance_field[ny, nx]
-                    best_dir = (nx - x, ny - y)
-            
-            # 방향 벡터 정규화
-            if best_dir != (0, 0):
-                length = math.sqrt(best_dir[0]**2 + best_dir[1]**2)
-                flow_field[y, x] = [best_dir[0]/length, best_dir[1]/length]
+                if grad_length > 0:
+                    grad_ux = grad_x / grad_length
+                    grad_uy = grad_y / grad_length
+                    
+                    # 🎯 핵심 수정: 직선 방향과 그래디언트 방향을 혼합
+                    # 직선 방향에 70% 가중치, 그래디언트 방향에 30% 가중치
+                    final_x = direct_ux * 0.7 + grad_ux * 0.3
+                    final_y = direct_uy * 0.7 + grad_uy * 0.3
+                    
+                    # 최종 방향 정규화
+                    final_length = math.sqrt(final_x**2 + final_y**2)
+                    if final_length > 0:
+                        flow_field[y, x] = [final_x/final_length, final_y/final_length]
+                    else:
+                        flow_field[y, x] = [direct_ux, direct_uy]
+                else:
+                    # 그래디언트를 계산할 수 없으면 직선 방향 사용
+                    flow_field[y, x] = [direct_ux, direct_uy]
+            else:
+                # 그래디언트를 계산할 수 없으면 직선 방향 사용
+                flow_field[y, x] = [direct_ux, direct_uy]
     
     return flow_field
 

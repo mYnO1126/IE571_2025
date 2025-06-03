@@ -20,4 +20,5 @@ def initialize_folders():
         i += 1
     os.makedirs("res/res" + str(i), exist_ok=True)
     os.makedirs("res/res" + str(i) + "/frames", exist_ok=True)
+    os.makedirs("res/res" + str(i) + "/frames_tactics", exist_ok=True)
     return "res/res" + str(i)
