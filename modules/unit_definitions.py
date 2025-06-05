@@ -1,11 +1,11 @@
 # unit_definitions.py
 
+from __future__ import annotations  # from .map import Coord
 
 from enum import Enum
 from collections import namedtuple
 import numpy as np
 import math
-from .map import Coord
 
 
 BLUE_HIT_PROB_BUFF = 0.8  # BLUE 진영의 명중 확률 버프
@@ -278,8 +278,8 @@ class UnitSpec:
         damage_func=None,
         target_delay_func=constant_dist_func(2.0),
         fire_time_func=constant_dist_func(1.0),
-        speed_road_kmh=100,
-        speed_offroad_kmh=100,
+        speed_road_kmh=30,
+        speed_offroad_kmh=15,
     ):
         self.name = name
         self.team = team  # "blue" or "red"
@@ -305,8 +305,8 @@ UNIT_SPECS = {  # TODO: unit ph_func, pk_func 추가
         pk_func=direct_fire_pk_func(),
         target_delay_func=triangular_distribution(2.0, 1.0),
         fire_time_func=constant_dist_func(0.8),
-        # speed_road_kmh=35,
-        # speed_offroad_kmh=20
+        speed_road_kmh=35,
+        speed_offroad_kmh=20
     ),
     "T-55": UnitSpec(
         name="T-55",
@@ -317,8 +317,8 @@ UNIT_SPECS = {  # TODO: unit ph_func, pk_func 추가
         pk_func=direct_fire_pk_func(),
         target_delay_func=triangular_distribution(3.0, 1.0),
         fire_time_func=constant_dist_func(1.0),
-        # speed_road_kmh=50,
-        # speed_offroad_kmh=25
+        speed_road_kmh=50,
+        speed_offroad_kmh=25
     ),
     "T-62": UnitSpec(
         name="T-62",
@@ -329,8 +329,8 @@ UNIT_SPECS = {  # TODO: unit ph_func, pk_func 추가
         pk_func=direct_fire_pk_func(),
         target_delay_func=triangular_distribution(3.0, 1.0),
         fire_time_func=constant_dist_func(1.0),
-        # speed_road_kmh=50,
-        # speed_offroad_kmh=30
+        speed_road_kmh=50,
+        speed_offroad_kmh=30
     ),
     "60mm_Mortar": UnitSpec(
         name="60mm_Mortar",
@@ -342,17 +342,21 @@ UNIT_SPECS = {  # TODO: unit ph_func, pk_func 추가
         damage_func=gaussian_damage_func(b=1.0),
         target_delay_func=triangular_distribution(1.0, 0.5),
         fire_time_func=constant_dist_func(0.8),
+        speed_road_kmh=0.00001,
+        speed_offroad_kmh=3, #0.00001
     ),
     "105mm_Howitzer": UnitSpec(
         name="105mm_Howitzer",
         team="blue",
         unit_type=UnitType.HOWITZER,
-        range_km=11.0,
+        range_km=8.0, #전술적 우위가 너무 심해서 사거리 조정함. 11.0,
         ph_func=None,
         pk_func=indirect_pk_func(),
         damage_func=cookie_cutter_damage_func(),
-        target_delay_func=triangular_distribution(3.0, 1.0),
-        fire_time_func=constant_dist_func(1.0),
+        target_delay_func=triangular_distribution(15.0, 5.0), #전술적 우위가 너무 심해서 조정. triangular_distribution(3.0, 1.0),
+        fire_time_func=constant_dist_func(15.0), #전술적 우위가 너무 심해서 조정. constant_dist_func(1.0),
+        speed_road_kmh=0.00001,
+        speed_offroad_kmh=0.00001
     ),
     "122mm_SPG": UnitSpec(
         name="122mm_SPG",
@@ -397,6 +401,8 @@ UNIT_SPECS = {  # TODO: unit ph_func, pk_func 추가
         # pk_func=simple_pk_func(0.85),
         target_delay_func=triangular_distribution(1.0, 0.5),
         fire_time_func=constant_dist_func(1.3),
+        # speed_road_kmh=0.00001,
+        # speed_offroad_kmh= 0.00001
     ),
     "106mm_M40_Recoilless_Rifle": UnitSpec(
         name="106mm_M40_Recoilless_Rifle",
@@ -417,6 +423,8 @@ UNIT_SPECS = {  # TODO: unit ph_func, pk_func 추가
         pk_func=direct_fire_pk_func(),
         target_delay_func=triangular_distribution(2.0, 0.5),
         fire_time_func=constant_dist_func(1.0),
+        # speed_road_kmh=0.00001,
+        # speed_offroad_kmh=0.00001
     ),
     "M72_LAW": UnitSpec(
         name="M72_LAW",
@@ -428,6 +436,8 @@ UNIT_SPECS = {  # TODO: unit ph_func, pk_func 추가
         # pk_func=simple_pk_func(0.6),
         target_delay_func=triangular_distribution(1.0, 0.5),
         fire_time_func=constant_dist_func(0.8), #TODO: 재장전 없음
+        # speed_road_kmh=0.00001,
+        # speed_offroad_kmh=0.00001
     ),
     "RPG-7": UnitSpec(
         name="RPG-7",
@@ -439,6 +449,8 @@ UNIT_SPECS = {  # TODO: unit ph_func, pk_func 추가
         # pk_func=simple_pk_func(0.65),
         target_delay_func=triangular_distribution(0.5, 0.17),
         fire_time_func=constant_dist_func(0.7),
+        # speed_road_kmh=0.00001,
+        # speed_offroad_kmh=0.00001       
     ),
     "M113": UnitSpec(
         name="M113",
