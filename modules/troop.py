@@ -852,7 +852,7 @@ class TroopList:  # Troop list to manage all troops
         for troop in self.troops:
             if not troop.alive:
                 self.remove_troop(troop)
-                troop.dead()
+                # troop.dead()
 
     def assign_targets(self, current_time):
 
@@ -1059,6 +1059,7 @@ def terminate(troop_list:TroopList, current_time):
         return True
 
     if not any(t.alive for t in troop_list.blue_troops) or not any(t.alive for t in troop_list.red_troops):
+        print(f"[{current_time:.1f}] 전투 종료: 모든 부대가 파괴됨")
         return True
 
     for troop in troop_list.troops:
@@ -1066,6 +1067,7 @@ def terminate(troop_list:TroopList, current_time):
             return False
         if troop.type == UnitType.APC and troop.alive:
             return False
+    print(f"[{current_time:.1f}] 전투 종료: 모든 전차와 APC가 파괴됨")
     return True
 
 #!TEMP >>>>

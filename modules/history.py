@@ -177,7 +177,7 @@ class History:  # Store history of troop actions and troop status
             color = "blue" if troop.team == "blue" else "red"
             color = "grey" if not troop.active else color
             marker = "o" if troop.type == UnitType.TANK else "s"
-            ax.scatter(
+            plt.scatter(
                 np.float32(troop.coord.x),
                 np.float32(troop.coord.y),
                 c=color,
@@ -233,9 +233,9 @@ class History:  # Store history of troop actions and troop status
         plt.savefig(f"{save_dir}/frame_{int(current_time):05d}.png")
         plt.close()
 
-    def _draw_attack_lines(self, ax, troop_list):
+    def _draw_attack_lines(self, ax, troop_list: TroopList):
         """공격선 그리기"""
-        for troop in troop_list:
+        for troop in troop_list.troops:
             if not troop.alive or not troop.active:
                 continue
             
@@ -294,9 +294,9 @@ class History:  # Store history of troop actions and troop status
                     head_width=3, head_length=4, 
                     fc=color, ec=color, alpha=alpha, linewidth = 1)
 
-    def _draw_weapon_ranges(self, ax, troop_list):
+    def _draw_weapon_ranges(self, ax, troop_list: TroopList):
         """무기 사거리 원 그리기"""
-        for troop in troop_list:
+        for troop in troop_list.troops:
             if not troop.alive or not troop.active:
                 continue
             
@@ -325,9 +325,9 @@ class History:  # Store history of troop actions and troop status
                                   alpha=alpha, linewidth=1)
                 ax.add_patch(circle)
 
-    def _draw_movement_paths(self, ax, troop_list):
+    def _draw_movement_paths(self, ax, troop_list: TroopList):
         """이동 경로 그리기"""
-        for troop in troop_list:
+        for troop in troop_list.troops:
             if not troop.alive or not troop.can_move:
                 continue
             
@@ -347,9 +347,9 @@ class History:  # Store history of troop actions and troop status
                        color='lime', linestyle='-.', 
                        linewidth=1, alpha=0.5)
 
-    def _draw_troop_markers(self, ax, troop_list):
+    def _draw_troop_markers(self, ax, troop_list: TroopList):
         """부대 마커 그리기"""
-        for troop in troop_list:
+        for troop in troop_list.troops:
             if not troop.alive:
                 continue
             
@@ -383,7 +383,7 @@ class History:  # Store history of troop actions and troop status
                       s=size, alpha=alpha,
                       edgecolors='black', linewidths=0.5)
 
-    def create_tactical_overview(self, Map, troop_list, current_time, save_dir="frames"):
+    def create_tactical_overview(self, Map, troop_list: TroopList, current_time, save_dir="frames"):
         """🟢 전술 개요 시각화 (별도 파일)"""
         fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(16, 8))
         
@@ -397,7 +397,7 @@ class History:  # Store history of troop actions and troop status
         plt.savefig(f"{save_dir}/tactical_{int(current_time):05d}.png", dpi=150)
         plt.close()
 
-    def _create_overview_plot(self, ax, Map, troop_list, current_time):
+    def _create_overview_plot(self, ax, Map, troop_list: TroopList, current_time):
         """전체 전술 상황 플롯"""
         # 간단한 지형 표시
         ax.imshow(Map.dem_arr, cmap="terrain", origin="upper", alpha=0.3)
@@ -409,12 +409,12 @@ class History:  # Store history of troop actions and troop status
         ax.set_xlim(0, Map.width)
         ax.set_ylim(Map.height, 0)
 
-    def _create_engagement_heatmap(self, ax, troop_list, current_time):
+    def _create_engagement_heatmap(self, ax, troop_list: TroopList, current_time):
         """교전 강도 히트맵"""
         # 활성 교전 중인 부대들의 위치를 기반으로 히트맵 생성
         engagement_data = []
         
-        for troop in troop_list:
+        for troop in troop_list.troops:
             if troop.alive and troop.active and troop.target:
                 engagement_data.append([troop.coord.x, troop.coord.y])
         

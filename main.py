@@ -224,7 +224,7 @@ def main():
             red_active = len([t for t in troop_list.red_troops if t.active and t.alive])
             print(f"시간 {current_time}: Blue 활성화 {blue_active}개, Red 활성화 {red_active}개")
             print(troop_list.get_combat_status())
-            history.create_tactical_overview(battle_map, troop_list.troops, current_time, save_dir=res_loc+"/frames_tactics")
+            history.create_tactical_overview(battle_map, troop_list, current_time, save_dir=res_loc+"/frames_tactics")
 
 if __name__ == "__main__":
     main()
