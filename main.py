@@ -137,7 +137,7 @@ def main():
                 feat['goals'] = []
 
             for comp, cnt in feat['comp'].items():
-                if comp == 'AK-47' or comp == 'RPG':
+                if comp == 'AK-47':
                     min_gap = 4
                 else:
                     min_gap = 6
@@ -155,7 +155,7 @@ def main():
             # 수정된 코드 (3개만 생성)
             if has_goal:
                 min_gap = 6
-                num_destinations = 10  # 3개만 생성
+                num_destinations = 10
                 
                 goals = grid_sample_no_overlap(
                     gx_range, gy_range, num_destinations,
@@ -190,7 +190,7 @@ def main():
         if hist_record_time==1.0:
             history.add_to_status_data(troop_list, battle_map.reference_altitude, battle_map.height)
             hist_record_time = 0.0
-            history.draw_troop_positions(battle_map, troop_list, current_time, save_dir=res_loc+"/frames")
+            history.draw_troop_positions(battle_map, troop_list.troops, current_time, save_dir=res_loc+"/frames")
 
         troop_list.remove_dead_troops()
 
