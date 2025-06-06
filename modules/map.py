@@ -5,7 +5,7 @@ import numpy as np
 import math
 from heapq import heappush, heappop
 from typing import List, Tuple, Optional
-from .unit_definitions import UnitType #, UnitStatus, UnitType, UnitComposition, HitState, UNIT_SPECS, BLUE_HIT_PROB_BUFF, get_landing_data, AMMUNITION_DATABASE, AmmunitionInfo, SUPPLY_DATABASE
+from .unit_definitions import UnitType #, UnitStatus, UnitType, UnitComposition, HitState, UNIT_SPECS, get_landing_data, AMMUNITION_DATABASE, AmmunitionInfo, SUPPLY_DATABASE
 
 
 # MAX_TIME = 100.0 # 최대 시뮬레이션 시간 (분 단위) #for testingfrom typing import List, Tuple

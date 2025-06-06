@@ -8,7 +8,6 @@ import numpy as np
 import math
 
 
-BLUE_HIT_PROB_BUFF = 0.8  # BLUE 진영의 명중 확률 버프
 
 
 # Probability distributions for firing times
@@ -775,7 +774,7 @@ def interpolate_lethal_area(weapon_name: str, angle: float, weapon_data: dict):
 
 
 def get_shell_landing_point(
-        target_coord: Coord, 
+        target_coord, 
         aim_error_x, 
         aim_error_r, 
         ballistic_error_x, 
@@ -797,7 +796,7 @@ def get_shell_landing_point(
 
 def get_landing_data(
     weapon_name: str,
-    target_coord: Coord,
+    target_coord,
     target_distance: float,
     target_environment: str = "open",
     ):

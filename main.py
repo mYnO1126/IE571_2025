@@ -9,7 +9,7 @@ from modules.history import History
 from modules.map import Map, Coord, MAX_TIME, TIME_STEP # MAP_WIDTH, MAP_HEIGHT, 
 from modules.placement import PLACEMENT, grid_sample_no_overlap
 from modules.timeline import TimelineEvent, TIMELINE
-from modules.troop import Troop, TroopList, update_troop_location, terminate, UNIT_SPECS
+from modules.troop import Troop, TroopList, terminate, UNIT_SPECS
 from modules.troop import update_troop_location_improved
 from modules.unit_definitions import UnitType, UnitComposition
 from modules.utils import initialize_folders
@@ -116,6 +116,7 @@ def main():
 
     current_time = 0.0
     hist_record_time = 0.0
+    img_save_interval = 0.0  # Save every 1 minute
     history = History(time=current_time)
     # battle_map = Map(MAP_WIDTH, MAP_HEIGHT)  # Create a map of size 100x100
     battle_map = Map() #MAP_WIDTH, MAP_HEIGHT)  # Create a map of size 100x100
@@ -156,7 +157,7 @@ def main():
             if has_goal:
                 min_gap = 6
                 num_destinations = 10  # 3개만 생성
-                
+
                 goals = grid_sample_no_overlap(
                     gx_range, gy_range, num_destinations,
                     min_gap=min_gap, used=set()
@@ -178,8 +179,11 @@ def main():
 
     # assign_target_all(current_time, troop_list)
     history.init_status_data(troop_list, battle_map.reference_altitude, battle_map.height)
-    
+
     while True:
+        if current_time > 1000.0:
+            print("Simulation time exceeded 1000 minutes. Terminating.")
+
         if timeline_index < len(TIMELINE):
             event = TIMELINE[timeline_index]
             if current_time == event.time:
@@ -190,7 +194,13 @@ def main():
         if hist_record_time==1.0:
             history.add_to_status_data(troop_list, battle_map.reference_altitude, battle_map.height)
             hist_record_time = 0.0
-            history.draw_troop_positions(battle_map, troop_list, current_time, save_dir=res_loc+"/frames")
+            # history.draw_troop_positions(battle_map, troop_list, current_time, save_dir=res_loc+"/frames")
+
+        if img_save_interval >= 10.0:
+            # history.draw_troop_positions(
+            #     battle_map, troop_list, current_time, save_dir=res_loc + "/frames", show_paths=True
+            # )
+            img_save_interval = 0.0
 
         troop_list.remove_dead_troops()
 
@@ -203,6 +213,7 @@ def main():
 
         current_time = round(current_time + TIME_STEP, 2)
         hist_record_time = round(hist_record_time + TIME_STEP, 2)
+        img_save_interval = round(img_save_interval + TIME_STEP, 2)
         history.update_time(current_time)
         # print(f"Current time: {current_time:.2f} min")
         # livingtroops = [f for f in troop_list if f.alive]
@@ -210,6 +221,7 @@ def main():
         # update_troop_location(living_troops, map=battle_map)
         # update_troop_location(troop_list.troops, battle_map, current_time) #!TEMP
         update_troop_location_improved(troop_list, battle_map, current_time)
+        troop_list.update_observation()
 
         next_battle_time = troop_list.get_next_battle_time()
         # print(f"Current time: {current_time:.2f} min")

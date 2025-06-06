@@ -4,12 +4,15 @@ import math
 import numpy as np
 import random
 from .map import Coord, Velocity, Map, MAX_TIME, TIME_STEP
-from .unit_definitions import UnitStatus, UnitType, UnitComposition, HitState, UNIT_SPECS, BLUE_HIT_PROB_BUFF, get_landing_data, AMMUNITION_DATABASE, AmmunitionInfo, SUPPLY_DATABASE
+from .unit_definitions import UnitStatus, UnitType, UnitComposition, HitState, UNIT_SPECS, get_landing_data, AMMUNITION_DATABASE, AmmunitionInfo, SUPPLY_DATABASE
 
 #!TEMP >>>>
 from .map import astar_pathfinding, TacticalManager, build_flow_field
 from typing import List, Tuple, Optional
 #!TEMP <<<<
+
+BLUE_HIT_PROB_BUFF = 0.8  # BLUE 진영의 명중 확률 버프
+BLUE_OBS_BUFF = 1.5  # BLUE 진영의 관측 버프 (1.5배 더 관측 가능)
 
 class Troop:  # Troop class to store troop information and actions
     # Static variables to keep track of troop IDs
@@ -29,6 +32,7 @@ class Troop:  # Troop class to store troop information and actions
         self.fire_time_func = spec.fire_time_func
         self.active   = False   # 이벤트상 “활성” 여부 (가시/표적 대상 등)
         self.can_move = False   # 이벤트상 “이동 허용” 여부
+        self.observed = False  # 이벤트상 “관측 대상” 여부
 
         self.id = self.assign_id()
         self.next_fire_time = 0.0  # Initial fire time
@@ -218,6 +222,33 @@ class Troop:  # Troop class to store troop information and actions
         else:
             return sorted(cand_list, key=lambda c: (c[2], c[1]))
 
+    def find_observed_enemies(self, troop_list):
+        """🟢 관측 가능한 적군 필터링"""
+        if self.team == "blue":
+            # 블루팀은 1.5배 관측 가능
+            range_km = self.range_km * BLUE_OBS_BUFF
+            observed_enemies = troop_list.red_observed
+            enemies = troop_list.red_troops
+        if self.team == "red":
+            # 레드팀은 기본 관측 범위
+            range_km = self.range_km
+            observed_enemies = troop_list.blue_observed
+            enemies = troop_list.blue_troops
+        
+        for troop in enemies:
+            if troop in observed_enemies:
+                if troop.active == False or troop.alive == False:
+                    observed_enemies.remove(troop)
+                else:
+                    continue  # 이미 관측된 적은 무시
+            else:
+                # 관측 범위 내 적군만 필터링
+                if troop.active and troop.alive:
+                    distance = self.get_distance(troop)
+                    if distance <= range_km:
+                        observed_enemies.append(troop)
+        return
+
     def assign_target(
         self, current_time, enemy_list
     ):  # TODO: Implement target assignment logic, indirect fire logic
@@ -303,7 +334,7 @@ class Troop:  # Troop class to store troop information and actions
 
         self.last_ammo_check = current_time
 
-    def fire(self, current_time, enemy_list, history):  # TODO: Implement firing logic
+    def fire(self, current_time, enemy_list, troop_list, history):  # TODO: Implement firing logic
         #TODO 에러 발생
         # # ▶ 경과 분만큼 탄약 소모
         # self.consume_ammo(current_time)
@@ -378,6 +409,8 @@ class Troop:  # Troop class to store troop information and actions
         #         result = HitState.MISS
         
         print("Result", self.id, result, self.team, self.type, self.name, "->", self.target.id, self.target.team, self.target.name)
+
+        troop_list.add_observed_troop(self)  # 관측 대상 추가
 
         history.add_to_battle_log(
             type_=self.type.value,
@@ -827,6 +860,9 @@ class TroopList:  # Troop list to manage all troops
         self.blue_troops = []
         self.red_troops = []
         self.troop_ids = []
+        self.blue_observed = []
+        self.red_observed = []
+
         for troop in troop_list:
             self.troops.append(troop)
             if troop.id in self.troop_ids:
@@ -845,22 +881,56 @@ class TroopList:  # Troop list to manage all troops
             self.troops.remove(troop)
             if troop.team == "blue":
                 self.blue_troops.remove(troop)
+                if troop in self.blue_observed:
+                    self.blue_observed.remove(troop)
             elif troop.team == "red":
                 self.red_troops.remove(troop)
+                if troop in self.red_observed:
+                    self.red_observed.remove(troop)
 
     def remove_dead_troops(self):
         for troop in self.troops:
             if not troop.alive:
                 self.remove_troop(troop)
-                # troop.dead()
+                troop.dead()
+
+    def get_observed_enemies(self, team):
+        if team == "blue":
+            return self.red_observed
+        elif team == "red":
+            return self.blue_observed
+        else:
+            print(f"[ERROR] wrong team affiliation: {team}")
+            return None
+        
+    def add_observed_troop(self, troop):
+        """🟢 관측 가능한 적군 추가"""
+        if troop.active and troop.alive:
+            if troop.team == "blue":
+                if troop not in self.blue_observed:
+                    self.blue_observed.append(troop)
+            elif troop.team == "red":
+                if troop not in self.red_observed:
+                    self.red_observed.append(troop)
+            else:
+                print(f"[ERROR] wrong team affiliation: {troop.team}")
+
+    def update_observation(self):
+        """🟢 관측 가능한 적군 업데이트"""
+        for troop in self.troops:
+            if troop.alive and getattr(troop, 'active', False):
+                troop.find_observed_enemies(self)
+
 
     def assign_targets(self, current_time):
 
         # ------------------
         # ========== 수정 1: 활성화된 적 리스트를 미리 필터링 ==========
-        active_blue_troops = [t for t in self.blue_troops if getattr(t, 'active', False) and t.alive]
-        active_red_troops = [t for t in self.red_troops if getattr(t, 'active', False) and t.alive]
-        
+        # active_blue_troops = [t for t in self.blue_troops if getattr(t, 'active', False) and t.alive]
+        # active_red_troops = [t for t in self.red_troops if getattr(t, 'active', False) and t.alive]
+        active_blue_troops = self.blue_observed
+        active_red_troops = self.red_observed
+
         # ========== 수정 2: 타겟 할당 전 기존 타겟 검증 ==========
         # 죽었거나 비활성화된 타겟들을 먼저 제거
         for troop in self.troops:
@@ -869,33 +939,33 @@ class TroopList:  # Troop list to manage all troops
                     not getattr(troop.target, 'active', False)):
                     troop.target = None
                     print(f"  {troop.id}: 기존 타겟 무효화됨")
-        
+
         # ========== 수정 3: 활성화된 부대만 타겟 할당 ==========
         targets_assigned = 0
         for troop in self.troops:
             if troop.alive and getattr(troop, 'active', False):
                 old_target = troop.target
-                
+
                 if troop.team == "blue":
                     troop.assign_target(current_time, active_red_troops)
                 elif troop.team == "red":
                     troop.assign_target(current_time, active_blue_troops)
-                
+
                 # 새 타겟이 할당되었는지 확인
                 if troop.target != old_target and troop.target is not None:
                     targets_assigned += 1
                     print(f"  {troop.id}: 새 타겟 할당 -> {troop.target.id}")
-        
+
         print(f"  총 {targets_assigned}개 유닛에 새 타겟 할당됨")
-        
+
         # ========== 수정 4: 타겟 할당 통계 출력 ==========
         blue_with_targets = len([t for t in active_blue_troops if t.target])
         red_with_targets = len([t for t in active_red_troops if t.target])
-        
+
         print(f"  타겟 보유 현황: Blue {blue_with_targets}/{len(active_blue_troops)}, " + 
               f"Red {red_with_targets}/{len(active_red_troops)}")
         # ------------------
- 
+
         # # for troop in self.troops:
         # #     if troop.alive:
         # #         if troop.team == "blue":
@@ -913,7 +983,7 @@ class TroopList:  # Troop list to manage all troops
         #         elif troop.team == "red":
         #             troop.assign_target(current_time, active_blue_troops)  # 변경!
         # #!TEMP # active한 적만 필터링 <<<<
-        
+
     def get_enemy_list(self, troop):
         if troop.team == "blue":
             return self.red_troops
@@ -937,79 +1007,78 @@ class TroopList:  # Troop list to manage all troops
         random.shuffle(self.red_troops)
 
     def fire(self, current_time, history):
-        
+
         self.shuffle_troops()
-        
+
         # ========== 수정: 활성화된 부대만 사격 ==========
         firing_troops = [t for t in self.troops 
                         if (t.next_fire_time <= current_time and 
                             t.alive and 
                             getattr(t, 'active', False))]
-        
+
         print(f"[{current_time:.1f}] {len(firing_troops)}개 유닛 사격 시도")
-        
+
         for troop in firing_troops:
             enemies = self.get_enemy_list(troop)
-            troop.fire(current_time, enemies, history)
+            troop.fire(current_time, enemies, self, history)
 
         # self.shuffle_troops()
 
-        # for troop in self.troops: 
+        # for troop in self.troops:
         #     if troop.next_fire_time <= current_time:
         #         enemies = self.get_enemy_list(troop)
         #         troop.fire(current_time, enemies, history)
-        
-        #TODO: 에러 발생
+
+        # TODO: 에러 발생
         # if not self.main_ammo_int_changed and not self.secondary_ammo_int_changed:
         #     self.next_fire_time = round(current_time + 1.0, 2)
         #     return
-        
-    def resupply(self, current_time):
-        supply_trucks = [t for t in self.troops
-                        if t.alive and t.type == UnitType.SUPPLY]
 
-        for supply in supply_trucks:
-            for unit in self.troops:
-                if not unit.alive or unit.team != supply.team or unit.type == UnitType.SUPPLY:
-                    continue
-                if supply.get_distance(unit) < 0.3:
-                    unit_name = unit.name
-                    if unit_name not in SUPPLY_DATABASE or unit_name not in supply.supply_stock:
-                        continue
+    # def resupply(self, current_time):
+    #     supply_trucks = [t for t in self.troops
+    #                     if t.alive and t.type == UnitType.SUPPLY]
 
-                    max_ammo = AMMUNITION_DATABASE[unit_name].main_ammo + AMMUNITION_DATABASE[unit_name].secondary_ammo
-                    curr_ammo = unit.main_ammo + unit.secondary_ammo
-                    missing_ammo = max(0.0, max_ammo - curr_ammo)
+    #     for supply in supply_trucks:
+    #         for unit in self.troops:
+    #             if not unit.alive or unit.team != supply.team or unit.type == UnitType.SUPPLY:
+    #                 continue
+    #             if supply.get_distance(unit) < 0.3:
+    #                 unit_name = unit.name
+    #                 if unit_name not in SUPPLY_DATABASE or unit_name not in supply.supply_stock:
+    #                     continue
 
-                    available = supply.supply_stock[unit_name]
-                    given = min(missing_ammo, available)
+    #                 max_ammo = AMMUNITION_DATABASE[unit_name].main_ammo + AMMUNITION_DATABASE[unit_name].secondary_ammo
+    #                 curr_ammo = unit.main_ammo + unit.secondary_ammo
+    #                 missing_ammo = max(0.0, max_ammo - curr_ammo)
 
-                    if given <= 0:
-                        continue
+    #                 available = supply.supply_stock[unit_name]
+    #                 given = min(missing_ammo, available)
 
-                    # 보급 수행
-                    unit_total = unit.main_ammo + unit.secondary_ammo
-                    ratio_main = unit.main_ammo / unit_total if unit_total > 0 else 1.0
+    #                 if given <= 0:
+    #                     continue
 
-                    unit.main_ammo += given * ratio_main
-                    unit.secondary_ammo += given * (1 - ratio_main)
+    #                 # 보급 수행
+    #                 unit_total = unit.main_ammo + unit.secondary_ammo
+    #                 ratio_main = unit.main_ammo / unit_total if unit_total > 0 else 1.0
 
-                    # 보급 트럭 잔여량 감소
-                    supply.supply_stock[unit_name] -= given
+    #                 unit.main_ammo += given * ratio_main
+    #                 unit.secondary_ammo += given * (1 - ratio_main)
 
-                    # 사격 제한 시간 갱신
-                    unit.ammo_restricted_until = current_time + 5.0
+    #                 # 보급 트럭 잔여량 감소
+    #                 supply.supply_stock[unit_name] -= given
 
+    #                 # 사격 제한 시간 갱신
+    #                 unit.ammo_restricted_until = current_time + 5.0
 
     # ========== 추가 메서드: 전투 상황 분석 ==========
     def get_combat_status(self):
         """현재 전투 상황을 분석하여 반환"""
         active_blue = [t for t in self.blue_troops if getattr(t, 'active', False) and t.alive]
         active_red = [t for t in self.red_troops if getattr(t, 'active', False) and t.alive]
-        
+
         blue_ready = len([t for t in active_blue if t.target and t.next_fire_time != float("inf")])
         red_ready = len([t for t in active_red if t.target and t.next_fire_time != float("inf")])
-        
+
         return {
             'blue_active': len(active_blue),
             'red_active': len(active_red),
@@ -1019,39 +1088,39 @@ class TroopList:  # Troop list to manage all troops
             'red_tanks': len([t for t in active_red if t.type == UnitType.TANK])
         }
 
-def update_troop_location(troop_list, battle_map, current_time):
-    for troop in troop_list:
-        if not troop.alive:
-            continue
-        
-        # “active” 플래그가 꺼져 있으면 아예 움직이지도, 표적 탐색도 하지 않음
-        if not troop.active or not troop.can_move:
-            troop.update_velocity(Velocity(0,0,0))
-            continue
+# def update_troop_location(troop_list, battle_map, current_time):
+#     for troop in troop_list:
+#         if not troop.alive:
+#             continue
 
-        # fixed_dest 가 있으면 그쪽으로, 없으면 (target or 자기 위치)
-        if troop.fixed_dest:
-            dest = troop.fixed_dest
-            # print(troop.fixed_dest)
-        else:
-            dest = troop.target.coord if troop.target else troop.coord
-            # print(dest)
+#         # “active” 플래그가 꺼져 있으면 아예 움직이지도, 표적 탐색도 하지 않음
+#         if not troop.active or not troop.can_move:
+#             troop.update_velocity(Velocity(0,0,0))
+#             continue
 
-        # dest = troop.target.coord if troop.target else troop.coord
-        v = troop.compute_velocity(dest, battle_map, current_time)
-        troop.update_velocity(v)
-        troop.update_coord()
+#         # fixed_dest 가 있으면 그쪽으로, 없으면 (target or 자기 위치)
+#         if troop.fixed_dest:
+#             dest = troop.fixed_dest
+#             # print(troop.fixed_dest)
+#         else:
+#             dest = troop.target.coord if troop.target else troop.coord
+#             # print(dest)
 
-        # z 값을 DEM 에서 직접 가져오기
-        xi, yi = int(troop.coord.x), int(troop.coord.y)
-        if 0 <= yi < battle_map.height and 0 <= xi < battle_map.width:
-            troop.coord.z = battle_map.dem_arr[yi, xi]
+#         # dest = troop.target.coord if troop.target else troop.coord
+#         v = troop.compute_velocity(dest, battle_map, current_time)
+#         troop.update_velocity(v)
+#         troop.update_coord()
 
-        if not (
-            0 <= troop.coord.x < battle_map.width
-            and 0 <= troop.coord.y < battle_map.height
-        ):
-            troop.alive = False
+#         # z 값을 DEM 에서 직접 가져오기
+#         xi, yi = int(troop.coord.x), int(troop.coord.y)
+#         if 0 <= yi < battle_map.height and 0 <= xi < battle_map.width:
+#             troop.coord.z = battle_map.dem_arr[yi, xi]
+
+#         if not (
+#             0 <= troop.coord.x < battle_map.width
+#             and 0 <= troop.coord.y < battle_map.height
+#         ):
+#             troop.alive = False
 
 def terminate(troop_list:TroopList, current_time):
     # Check if all troops are dead or if the time limit is reached
@@ -1071,7 +1140,7 @@ def terminate(troop_list:TroopList, current_time):
     return True
 
 #!TEMP >>>>
-def update_troop_location_improved(troop_list, battle_map, current_time):
+def update_troop_location_improved(troop_list: TroopList, battle_map, current_time):
     """개선된 부대 이동 업데이트"""
 
     for troop in troop_list.troops:
@@ -1108,6 +1177,7 @@ def update_troop_location_improved(troop_list, battle_map, current_time):
                 troop, troop.target, battle_map, troop_list.troops
             )
             dest = dest_coord
+            troop.can_move = True  # 🔑 중요: 활성화된 부대는 이동 가능
         else:
             dest = troop.coord  # 제자리
 
