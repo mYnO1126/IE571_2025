@@ -11,8 +11,10 @@ from .map import astar_pathfinding, TacticalManager, build_flow_field
 from typing import List, Tuple, Optional
 #!TEMP <<<<
 
-BLUE_HIT_PROB_BUFF = 0.6  # BLUE 진영의 명중 확률 버프
+BLUE_RANGE_BUFF = 1.2  # BLUE 진영의 사거리 버프 (20% 증가)
+BLUE_HIT_PROB_BUFF = 0.8  # BLUE 진영의 명중 확률 버프
 BLUE_OBS_BUFF = 1.5  # BLUE 진영의 관측 버프 (1.5배 더 관측 가능)
+# RED_RANGE_BUFF = 0.8  # RED 진영의 사거리 버프 (기본값, 0% 증가)
 PATHFIND_COOLDOWN = 30.0  # A* 경로 재계산 쿨타임 (초 단위)
 
 class Troop:  # Troop class to store troop information and actions
@@ -26,6 +28,8 @@ class Troop:  # Troop class to store troop information and actions
         self.type = spec.unit_type
         self.name = spec.name
         self.range_km = spec.range_km
+        if self.team == "blue":
+            self.range_km *= BLUE_RANGE_BUFF  # Apply BLUE team range buff
         self.ph_func = spec.ph_func
         self.pk_func = spec.pk_func
         self.damage_func = spec.damage_func
@@ -34,6 +38,7 @@ class Troop:  # Troop class to store troop information and actions
         self.active   = False   # 이벤트상 “활성” 여부 (가시/표적 대상 등)
         self.can_move = False   # 이벤트상 “이동 허용” 여부
         self.observed = False  # 이벤트상 “관측 대상” 여부
+        # self.firing = False  # 이벤트상 “사격 중” 여부
 
         self.id = self.assign_id()
         self.next_fire_time = 0.0  # Initial fire time
@@ -221,7 +226,7 @@ class Troop:  # Troop class to store troop information and actions
         else:
             return sorted(cand_list, key=lambda c: (c[2], c[1]))
 
-    def find_observed_enemies(self, troop_list):
+    def find_observed_enemies(self, troop_list, battle_map: Map):
         """🟢 관측 가능한 적군 필터링"""
         if self.team == "blue":
             # 블루팀은 1.5배 관측 가능
@@ -245,7 +250,8 @@ class Troop:  # Troop class to store troop information and actions
                 if troop.active and troop.alive:
                     distance = self.get_distance(troop)
                     if distance <= range_km:
-                        observed_enemies.append(troop)
+                        if battle_map.is_visible(self.coord, troop.coord):
+                            observed_enemies.append(troop)
         return
 
     def assign_target(
@@ -661,6 +667,8 @@ class Troop:  # Troop class to store troop information and actions
 
         # 4) 실제 per-min 이동량
         speed = base_speed / terrain_factor / daynight
+        # if self.firing:
+        #     speed *= 0.2
         move_km = speed * TIME_STEP  # TIME_STEP은 1.0분
 
         # 5) km → m → pixels 변환
@@ -712,21 +720,21 @@ class Troop:  # Troop class to store troop information and actions
 
         return directions
 
-    def compute_velocity(self, dest, battle_map: Map, current_time: float):
-        """개선된 이동 로직 - 전술적 목적지와 고급 경로탐색"""
+    # def compute_velocity(self, dest, battle_map: Map, current_time: float):
+    #     """개선된 이동 로직 - 전술적 목적지와 고급 경로탐색"""
 
-        # 1. 전술적 목적지 결정
-        if self.target and self.active and self.can_move:
-            # 아군 부대 리스트 필요 (실제 구현시 TroopList에서 전달)
-            allied_troops = []  # 임시
-            tactical_dest = TacticalManager.get_tactical_destination(
-                self, self.target, battle_map, allied_troops
-            )
-        else:
-            tactical_dest = dest
+    #     # 1. 전술적 목적지 결정
+    #     if self.target and self.active and self.can_move:
+    #         # 아군 부대 리스트 필요 (실제 구현시 TroopList에서 전달)
+    #         allied_troops = []  # 임시
+    #         tactical_dest = TacticalManager.get_tactical_destination(
+    #             self, self.target, battle_map, allied_troops
+    #         )
+    #     else:
+    #         tactical_dest = dest
 
-        # 2. 고급 경로탐색 사용
-        return self.compute_velocity_advanced(tactical_dest, battle_map, current_time)
+    #     # 2. 고급 경로탐색 사용
+    #     return self.compute_velocity_advanced(tactical_dest, battle_map, current_time)
 
     #!TEMP <<<<
 
@@ -792,11 +800,11 @@ class TroopList:  # Troop list to manage all troops
             else:
                 print(f"[ERROR] wrong team affiliation: {troop.team}")
 
-    def update_observation(self):
+    def update_observation(self, battle_map: Map):
         """🟢 관측 가능한 적군 업데이트"""
         for troop in self.troops:
             if troop.alive and getattr(troop, 'active', False):
-                troop.find_observed_enemies(self)
+                troop.find_observed_enemies(self, battle_map)
 
     def assign_targets(self, current_time):
 

@@ -227,7 +227,7 @@ def main():
         # update_troop_location(living_troops, map=battle_map)
         # update_troop_location(troop_list.troops, battle_map, current_time) #!TEMP
         update_troop_location_improved(troop_list, battle_map, current_time)
-        troop_list.update_observation()
+        troop_list.update_observation(battle_map)
         troop_list.assign_targets_for_nontarget_units(current_time)
 
         next_battle_time = troop_list.get_next_battle_time()

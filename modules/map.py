@@ -205,6 +205,47 @@ class Map:  # Map class to store map information
     # def is_road(self, x, y):
     #     xi, yi = int(x), int(y)
     #     return 0 <= xi < self.width and 0 <= yi < self.height and self.grid[xi, yi] == 2
+
+    def is_visible(self, from_coord: Coord, to_coord: Coord, observer_height=2.0, target_height=2.0):
+        """
+        Fast line-of-sight check using integer grid steps.
+        Returns True if there is a clear LOS from from_coord to to_coord.
+        Elevations are taken from DEM; observer/target heights in meters.
+        """
+        x0, y0 = int(round(from_coord.x)), int(round(from_coord.y))
+        x1, y1 = int(round(to_coord.x)), int(round(to_coord.y))
+
+        if not (0 <= x0 < self.width and 0 <= y0 < self.height):
+            return False
+        if not (0 <= x1 < self.width and 0 <= y1 < self.height):
+            return False
+
+        z0 = self.dem_arr[y0, x0] + observer_height
+        z1 = self.dem_arr[y1, x1] + target_height
+
+        dx = abs(x1 - x0)
+        dy = abs(y1 - y0)
+        n = max(dx, dy)
+        if n == 0:
+            return True  # Same cell
+
+        # Precompute per-step increments
+        for step in range(1, n):
+            t = step / n
+            xi = int(round(x0 + (x1 - x0) * t))
+            yi = int(round(y0 + (y1 - y0) * t))
+            zi_expected = z0 + (z1 - z0) * t
+
+            # Bounds check (just in case)
+            if not (0 <= xi < self.width and 0 <= yi < self.height):
+                return False
+
+            ground_z = self.dem_arr[yi, xi]
+            if ground_z + 0.5 > zi_expected:  # Blocked
+                return False
+
+        return True
+
         
 #!TEMP >>>>
 def astar_pathfinding(battle_map: Map, start: Tuple[int, int], goal: Tuple[int, int]) -> List[Tuple[int, int]]:
