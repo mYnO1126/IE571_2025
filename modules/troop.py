@@ -13,7 +13,7 @@ from typing import List, Tuple, Optional
 
 BLUE_RANGE_BUFF = 1.2  # BLUE 진영의 사거리 버프 (20% 증가)
 BLUE_HIT_PROB_BUFF = 0.8  # BLUE 진영의 명중 확률 버프
-BLUE_OBS_BUFF = 1.5  # BLUE 진영의 관측 버프 (1.5배 더 관측 가능)
+BLUE_OBS_BUFF = 1.2  # BLUE 진영의 관측 버프 (1.5배 더 관측 가능)
 # RED_RANGE_BUFF = 0.8  # RED 진영의 사거리 버프 (기본값, 0% 증가)
 PATHFIND_COOLDOWN = 30.0  # A* 경로 재계산 쿨타임 (초 단위)
 
