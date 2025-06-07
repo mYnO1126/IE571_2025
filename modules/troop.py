@@ -494,10 +494,10 @@ class Troop:  # Troop class to store troop information and actions
             return
         
         # 🟢 항상 경로탐색 사용 (직선 통과 체크 제거)
-        if self.should_use_flow_field(battle_map):
-            self.path = self.get_flow_field_path(goal, battle_map)
-        else:
-            self.path = astar_pathfinding(battle_map, start, goal)
+        self.path = self.get_flow_field_path(goal, battle_map)
+        # if self.should_use_flow_field(battle_map):
+        # else:
+        #     self.path = astar_pathfinding(battle_map, start, goal)
         
         # 🟢 경로 후처리: 너무 가까운 웨이포인트 제거
         if self.path:
@@ -1095,7 +1095,8 @@ def update_troop_location_improved(troop_list, battle_map, current_time):
             if dist_to_dest < 5:  # 5픽셀(50m) 이내
                 troop.update_velocity(Velocity(0, 0, 0))
                 troop.fixed_dest = None  # 🔑 중요: 목적지 제거
-                troop.can_move = False   # 🔑 중요: 이동 금지
+                if troop.team == "blue":
+                    troop.can_move = False   # 🔑 중요: 이동 금지
 
                 print(f"[{current_time:.1f}] {troop.id} 목적지 도달 완료")
                 continue

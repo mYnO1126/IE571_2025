@@ -67,9 +67,9 @@ class Map:  # Map class to store map information
         self.terrain_cost = {
             0: 1.0,  # plain
             1: 1.3,  # rugged (slope 10)
-            2: 2.5,  # rugged (slope 15)
-            3: 5.0,  # rugged (slope 20)
-            4: 15.0,  # rugged (slope 30)
+            2: 3.5,  # rugged (slope 15)
+            3: 10.0,  # rugged (slope 20)
+            4: np.inf,  # rugged (slope 30)
             5: 0.8,  # road
             6: np.inf,  # lake
             7: 1.8,  # wood (forest)
