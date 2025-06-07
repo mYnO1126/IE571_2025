@@ -98,14 +98,13 @@ class Troop:  # Troop class to store troop information and actions
             + (self.coord.y - other_troop.coord.y) ** 2
             + (self.coord.z - other_troop.coord.z) ** 2
         ) * 0.01 # pixel -> km 변환 (10m = 0.01km)
-    
+
     # def get_distance(self, other_troop):
     #     """최적화된 3D 거리 계산 - 권장 버전"""
     #     dx = (self.coord.x - other_troop.coord.x) * 10
     #     dy = (self.coord.y - other_troop.coord.y) * 10
     #     dz = self.coord.z - other_troop.coord.z
     #     return (dx*dx + dy*dy + dz*dz) ** 0.5 * 0.001
-
 
     def get_distance_fast(self, other_troop):
         # 제곱근 연산 제거한 버전
@@ -119,53 +118,53 @@ class Troop:  # Troop class to store troop information and actions
     def get_t_f(self):
         return self.fire_time_func(0) if self.target else 0
 
-    # def compute_velocity(
-    #     self, dest: Coord, battle_map: Map, current_time: float
-    # ) -> Velocity: # TODO: stop if in range, hour/minute check
+        # def compute_velocity(
+        #     self, dest: Coord, battle_map: Map, current_time: float
+        # ) -> Velocity: # TODO: stop if in range, hour/minute check
 
-    #     # 1) 기본 속도 km/h → km/min
-    #     on_road = battle_map.is_road(self.coord.x, self.coord.y)
-    #     base_speed = (
-    #         self.spec.speed_road_kmh if on_road else self.spec.speed_offroad_kmh
-    #     ) / 60
+        #     # 1) 기본 속도 km/h → km/min
+        #     on_road = battle_map.is_road(self.coord.x, self.coord.y)
+        #     base_speed = (
+        #         self.spec.speed_road_kmh if on_road else self.spec.speed_offroad_kmh
+        #     ) / 60
 
-    #     # 2) 지형 가중치
-    #     terrain_factor = battle_map.movement_factor(self.coord.x, self.coord.y)
+        #     # 2) 지형 가중치
+        #     terrain_factor = battle_map.movement_factor(self.coord.x, self.coord.y)
 
-    #     if not np.isfinite(terrain_factor):
-    #         # impassable cell → 움직이지 않음 #TODO 방향을 돌려서 가도록 전환 필요.
-    #         return Velocity(0,0,0)
+        #     if not np.isfinite(terrain_factor):
+        #         # impassable cell → 움직이지 않음 #TODO 방향을 돌려서 가도록 전환 필요.
+        #         return Velocity(0,0,0)
 
-    #     # 3) 낮/밤 가중치 (19:00–06:00 야간엔 50% 느려짐)
-    #     hour = int((13 * 60 + 55 + current_time) // 60) % 24
-    #     daynight = 1.0 if 6 <= hour < 19 else 1.5
+        #     # 3) 낮/밤 가중치 (19:00–06:00 야간엔 50% 느려짐)
+        #     hour = int((13 * 60 + 55 + current_time) // 60) % 24
+        #     daynight = 1.0 if 6 <= hour < 19 else 1.5
 
-    #     # 4) 실제 per-min 이동량
-    #     speed = base_speed / terrain_factor / daynight
+        #     # 4) 실제 per-min 이동량
+        #     speed = base_speed / terrain_factor / daynight
 
-    #     # 5) 방향 단위 벡터
-    #     dx, dy = dest.x - self.coord.x, dest.y - self.coord.y
-    #     dist = math.hypot(dx, dy)
+        #     # 5) 방향 단위 벡터
+        #     dx, dy = dest.x - self.coord.x, dest.y - self.coord.y
+        #     dist = math.hypot(dx, dy)
 
-    #     if dist == 0:
-    #         return Velocity(0, 0, 0)
-        
+        #     if dist == 0:
+        #         return Velocity(0, 0, 0)
+
         if dist < self.range_km:  #TODO: 사거리 제한
             # 목표 지점이 사거리 이내면 멈춤
             return Velocity(0, 0, 0)
-        
+
         ux, uy = dx / dist, dy / dist
 
     #     move = speed * TIME_STEP
 
     #     # move (km) → move_m (m)
-    #     move_m  = move * 1000  
-        
+    #     move_m  = move * 1000
+
     #     # print(f"[{self.id}] move = {move_m:.1f} m/min ("f"{speed:.3f} km/min)")
-        
+
     #     # move_m (m) → move_px (pixels), given 1 px = 10 m
     #     move_px = move_m / battle_map.resolution_m
-    
+
     #     # 로그 출력
     #     # direction unit vector stays the same:
     #     ux, uy = dx/dist, dy/dist
@@ -234,7 +233,7 @@ class Troop:  # Troop class to store troop information and actions
             range_km = self.range_km
             observed_enemies = troop_list.blue_observed
             enemies = troop_list.blue_troops
-        
+
         for troop in enemies:
             if troop in observed_enemies:
                 if troop.active == False or troop.alive == False:
@@ -252,7 +251,7 @@ class Troop:  # Troop class to store troop information and actions
     def assign_target(
         self, current_time, enemy_list
     ):  # TODO: Implement target assignment logic, indirect fire logic
-    
+
         #!TEMP 이미 좋은 타겟이 있으면 그대로 유지 >>>>
         if (self.target and self.target.alive and 
             getattr(self.target, 'active', False)):
@@ -260,7 +259,7 @@ class Troop:  # Troop class to store troop information and actions
             if distance <= self.range_km:
                 return  # 기존 타겟 유지 - 계산 생략!        
         #!TEMP 이미 좋은 타겟이 있으면 그대로 유지 <<<<
-        
+
         # 밤 시간대: 19:00 ~ 06:00
         is_night = 360 <= current_time % 1440 <= 1080
 
@@ -272,16 +271,16 @@ class Troop:  # Troop class to store troop information and actions
                     continue
                 if e.status == UnitStatus.HIDDEN:
                     continue
-                
+
                 #!TEMP 추가: active=False인 적은 타겟 대상에서 제외
                 if not getattr(e, 'active', False):
                     continue
-                
+
                 distance = self.get_distance(e)
-                
+
                 if distance > self.range_km:  #TODO: 사거리 제한
                     continue
-                
+
                 candidates.append((e, distance, 1))
 
             if not candidates:
@@ -309,7 +308,7 @@ class Troop:  # Troop class to store troop information and actions
             self.next_fire_time = float("inf")
             # print("no more enemy left")
             return
-        
+
     # ▶ 경과 시간만큼 탄약을 자동 소모
     def consume_ammo(self, current_time):
         dt = current_time - self.last_ammo_check
@@ -335,7 +334,7 @@ class Troop:  # Troop class to store troop information and actions
         self.last_ammo_check = current_time
 
     def fire(self, current_time, enemy_list, troop_list, history):  # TODO: Implement firing logic
-        #TODO 에러 발생
+        # TODO 에러 발생
         # # ▶ 경과 분만큼 탄약 소모
         # self.consume_ammo(current_time)
 
@@ -360,7 +359,7 @@ class Troop:  # Troop class to store troop information and actions
             self.assign_target(current_time, enemy_list)
             return
         #!TEMP 수정: None 체크를 먼저 수행 <<<<
-    
+
         if self.target.alive == False or self.target is None:
             self.assign_target(current_time, enemy_list)
             return
@@ -372,7 +371,8 @@ class Troop:  # Troop class to store troop information and actions
         distance = self.get_distance(self.target)
 
         if distance > self.range_km:  #TODO: 사거리 제한
-            self.next_fire_time = round(current_time + self.get_t_f(), 2)
+            # self.next_fire_time = round(current_time + self.get_t_f(), 2)
+            self.assign_target(current_time, enemy_list)
             return
         result = HitState.MISS
         hit_rand_var = np.random.rand()
@@ -407,7 +407,7 @@ class Troop:  # Troop class to store troop information and actions
         #         result = self.pk_func(kill_rand_var)
         #     else:
         #         result = HitState.MISS
-        
+
         print("Result", self.id, result, self.team, self.type, self.name, "->", self.target.id, self.target.team, self.target.name)
 
         troop_list.add_observed_troop(self)  # 관측 대상 추가
@@ -451,66 +451,45 @@ class Troop:  # Troop class to store troop information and actions
                 self.target = None
                 self.assign_target(current_time, enemy_list)
                 return
-            
-    #!TEMP >>>>
-    # def compute_velocity_advanced(self, dest, battle_map: Map, current_time: float):
-    #     """개선된 이동 계산 - 경로탐색 활용"""
-        
-    #     # 1. 경로 재계산 조건 확인
-    #     should_recalculate = (
-    #         not self.path or 
-    #         current_time - self.last_pathfind_time > self.pathfind_cooldown or
-    #         self.path_index >= len(self.path)
-    #     )
-        
-    #     if should_recalculate:
-    #         self.recalculate_path(dest, battle_map, current_time)
-        
-    #     # 2. 경로가 있으면 경로 따라가기
-    #     if self.path and self.path_index < len(self.path):
-    #         return self.follow_path(battle_map, current_time)
-        
-    #     # 3. 경로가 없으면 직선 이동 (백업)
-    #     return self.compute_direct_velocity(dest, battle_map, current_time)
 
     def compute_velocity_advanced(self, dest, battle_map: Map, current_time: float):
         """🟢 개선된 이동 계산 - 직선 통과 없이"""
-        
+
         # 1. 경로 재계산 조건 확인
         should_recalculate = (
             not self.path or 
             current_time - self.last_pathfind_time > self.pathfind_cooldown or
             self.path_index >= len(self.path)
         )
-        
+
         if should_recalculate:
             self.recalculate_path(dest, battle_map, current_time)
-        
+
         # 2. 경로가 있으면 경로 따라가기
         if self.path and self.path_index < len(self.path):
             return self.follow_path(battle_map, current_time)
-        
+
         # 3. 경로가 없으면 직선 이동 (백업) - 장애물 회피 포함
         return self.compute_direct_velocity(dest, battle_map, current_time)
 
     # def recalculate_path(self, dest, battle_map: Map, current_time: float):
-        
+
     #     """A* 또는 플로우 필드로 경로 재계산"""
     #     start = (int(self.coord.x), int(self.coord.y))
     #     goal = (int(dest.x), int(dest.y))
-        
+
     #     # 목표가 너무 가까우면 직선 이동
     #     if math.hypot(goal[0] - start[0], goal[1] - start[1]) < 5:
     #         self.path = []
     #         return
-        
+
     #     # 플로우 필드 사용 (대규모 부대용)
     #     if self.should_use_flow_field(battle_map):
     #         self.path = self.get_flow_field_path(goal, battle_map)
     #     else:
     #         # A* 사용 (개별 부대용)
     #         self.path = astar_pathfinding(battle_map, start, goal)
-        
+
     #     self.path_index = 0
     #     self.last_pathfind_time = current_time
 
@@ -519,23 +498,23 @@ class Troop:  # Troop class to store troop information and actions
         """🟢 개선된 경로 재계산 (직선 통과 체크 제거)"""
         start = (int(self.coord.x), int(self.coord.y))
         goal = (int(dest.x), int(dest.y))
-        
+
         # 🟢 아주 가까운 거리만 경로탐색 생략
         distance_to_goal = math.hypot(goal[0] - start[0], goal[1] - start[1])
         if distance_to_goal < 3:  # 30m 이내만 생략
             self.path = []
             return
-        
+
         # 🟢 항상 경로탐색 사용 (직선 통과 체크 제거)
         if self.should_use_flow_field(battle_map):
             self.path = self.get_flow_field_path(goal, battle_map)
         else:
             self.path = astar_pathfinding(battle_map, start, goal)
-        
+
         # 🟢 경로 후처리: 너무 가까운 웨이포인트 제거
         if self.path:
             self.path = self.filter_close_waypoints(self.path, min_distance=3)
-        
+
         self.path_index = 0
         self.last_pathfind_time = current_time
 
@@ -550,165 +529,64 @@ class Troop:  # Troop class to store troop information and actions
         """🟢 너무 가까운 웨이포인트 제거로 부드러운 경로 생성"""
         if len(path) <= 2:
             return path
-        
+
         filtered = [path[0]]
-        
+
         for i in range(1, len(path)):
             last_point = filtered[-1]
             current_point = path[i]
-            
+
             distance = math.hypot(
                 current_point[0] - last_point[0],
                 current_point[1] - last_point[1]
             )
-            
+
             # 최소 거리 이상일 때만 추가
             if distance >= min_distance:
                 filtered.append(current_point)
-        
+
         # 마지막 점은 항상 포함
         if filtered[-1] != path[-1]:
             filtered.append(path[-1])
-        
+
         return filtered
-    
-    
-    # def get_flow_field_path(self, goal: Tuple[int, int], battle_map: Map) -> List[Tuple[int, int]]:
-    #     """플로우 필드를 이용한 경로 생성"""
-    #     goal_key = f"{goal[0]}_{goal[1]}"
-        
-    #     if goal_key not in battle_map.flow_fields:
-    #         battle_map.flow_fields[goal_key] = build_flow_field(battle_map, goal)
-        
-    #     flow_field = battle_map.flow_fields[goal_key]
-        
-    #     # 플로우 필드 따라 경로 생성 (최대 50스텝)
-    #     path = []
-    #     x, y = int(self.coord.x), int(self.coord.y)
-        
-    #     for _ in range(50):
-    #         if (x, y) == goal:
-    #             break
-                
-    #         if not (0 <= y < battle_map.height and 0 <= x < battle_map.width):
-    #             break
-                
-    #         dx, dy = flow_field[y, x]
-    #         if dx == 0 and dy == 0:
-    #             break
-                
-    #         # 다음 위치 계산
-    #         x += int(round(dx))
-    #         y += int(round(dy))
-    #         path.append((x, y))
-        
-    #     return path
 
     def get_flow_field_path(self, goal: Tuple[int, int], battle_map: Map) -> List[Tuple[int, int]]:
         """🟢 수정된 플로우 필드 경로 생성 - 실수 좌표 사용"""
         goal_key = f"{goal[0]}_{goal[1]}"
-        
+
         if goal_key not in battle_map.flow_fields:
             battle_map.flow_fields[goal_key] = build_flow_field(battle_map, goal)
-        
+
         flow_field = battle_map.flow_fields[goal_key]
-        
+
         # 🟢 핵심 수정: 실수 좌표로 경로 생성
         path = []
         x, y = float(self.coord.x), float(self.coord.y)
-        
+
         for step in range(200):  # 더 많은 스텝 허용
             # 목표 근처 도달 확인
             if abs(x - goal[0]) < 2 and abs(y - goal[1]) < 2:
                 break
-                
+
             xi, yi = int(x), int(y)
             if not (0 <= yi < battle_map.height and 0 <= xi < battle_map.width):
                 break
-                
+
             dx, dy = flow_field[yi, xi]
             if dx == 0 and dy == 0:
                 break
-                
+
             # 🟢 핵심 수정: 실수 좌표로 이동하되 작은 스텝 사용
             step_size = 2.0  # 작은 스텝으로 부드러운 곡선
             x += dx * step_size
             y += dy * step_size
-            
+
             # 🟢 더 조밀한 웨이포인트 생성 (2스텝마다)
             if step % 2 == 0:
                 path.append((int(x), int(y)))
-        
+
         return path
-    
-    # def follow_path(self, battle_map: Map, current_time: float):
-    #     """경로를 따라 이동"""
-    #     if self.path_index >= len(self.path):
-    #         return Velocity(0, 0, 0)
-        
-    #     target_x, target_y = self.path[self.path_index]
-        
-    #     # 현재 위치에서 경로상 다음 지점까지의 벡터
-    #     dx = target_x - self.coord.x
-    #     dy = target_y - self.coord.y
-    #     dist = math.hypot(dx, dy)
-        
-    #     # 목표점에 충분히 가까우면 다음 경로점으로
-    #     if dist < 2.0:  # 2픽셀 이내
-    #         self.path_index += 1
-    #         if self.path_index >= len(self.path):
-    #             return Velocity(0, 0, 0)
-            
-    #         elif self.path_index < len(self.path):
-    #             target_x, target_y = self.path[self.path_index]
-    #             dx = target_x - self.coord.x
-    #             dy = target_y - self.coord.y
-    #             dist = math.hypot(dx, dy)
-        
-    #     if dist == 0:
-    #         return Velocity(0, 0, 0)
-        
-    #     # 속도 계산 (기존 로직 활용)
-    #     ux, uy = dx / dist, dy / dist
-    #     move_distance = self.calculate_movement_distance(battle_map, current_time)
-        
-    #     return Velocity(ux * move_distance, uy * move_distance, 0)
-    
-    # def follow_path(self, battle_map: Map, current_time: float):
-
-    #     # """경로를 따라 이동 - 진동 문제 해결 버전"""
-    #     # if self.path_index >= len(self.path):
-    #     #     return Velocity(0, 0, 0)
-
-    #     # 현재 위치에서 목표까지의 거리
-    #     target_x, target_y = self.path[self.path_index]
-    #     dx = target_x - self.coord.x
-    #     dy = target_y - self.coord.y
-    #     dist = math.hypot(dx, dy)
-
-    #     # 2) 만약 이미 웨이포인트에 충분히 가까이 도달했다면
-    #     #    (예: dist < threshold), 다음 웨이포인트로 넘어가도록 함
-    #     if dist < 4.0:  # 4px 이내
-    #         self.path_index += 1
-    #         # 만약 마지막 웨이포인트였다면 멈추기
-    #         if self.path_index >= len(self.path):
-    #             return Velocity(0, 0, 0)
-    #         # 다음 웨이포인트로 가기 위해 재귀처럼 다시 속도 계산
-    #         return self.follow_path(battle_map, current_time)
-
-    #     # 3) 단위 벡터 구하기
-    #     ux = dx / dist
-    #     uy = dy / dist
-
-    #     # 4) 프레임당 이동거리(raw_move_px) 계산 (m → px 변환 등)
-    #     move_m = self.calculate_movement_distance(battle_map, current_time)
-    #     move_px = move_m / battle_map.resolution_m
-
-    #     # 5) "남은 거리(dist)" 보다 과도하지 않도록 클램핑
-    #     move_px = min(move_px, dist)
-
-    #     # 6) 실제 속도 리턴
-    #     return Velocity(ux * move_px, uy * move_px, 0)
 
     def follow_path(self, battle_map: Map, current_time: float):
         """🟢 개선된 경로 따라가기 - 부드러운 곡선 이동"""
@@ -717,24 +595,24 @@ class Troop:  # Troop class to store troop information and actions
 
         # 🟢 현재 타겟과 다음 타겟을 고려한 스무스 이동
         target_x, target_y = self.path[self.path_index]
-        
+
         # 다음 웨이포인트가 있으면 미리보기로 방향 조정
         if self.path_index + 1 < len(self.path):
             next_x, next_y = self.path[self.path_index + 1]
-            
+
             # 현재 타겟까지의 거리
             dx1 = target_x - self.coord.x
             dy1 = target_y - self.coord.y
             dist1 = math.hypot(dx1, dy1)
-            
+
             # 🟢 타겟에 가까워지면 다음 타겟 방향도 고려
             if dist1 < 8:  # 80m 이내
                 dx2 = next_x - target_x
                 dy2 = next_y - target_y
-                
+
                 # 가중 평균으로 방향 스무딩
                 weight = max(0, (8 - dist1) / 8)  # 가까울수록 다음 방향 가중치 증가
-                
+
                 dx = dx1 * (1 - weight) + dx2 * weight
                 dy = dy1 * (1 - weight) + dy2 * weight
             else:
@@ -742,9 +620,9 @@ class Troop:  # Troop class to store troop information and actions
         else:
             dx = target_x - self.coord.x
             dy = target_y - self.coord.y
-        
+
         dist = math.hypot(dx, dy)
-        
+
         # 🟢 도달 임계값 축소 (1.5픽셀 = 15m)
         if dist < 1.5:
             self.path_index += 1
@@ -763,7 +641,7 @@ class Troop:  # Troop class to store troop information and actions
         move_px = min(move_px, dist * 0.8)  # 거리의 80%로 제한
 
         return Velocity(ux * move_px, uy * move_px, 0)
-    
+
     def calculate_movement_distance(self, battle_map: Map, current_time: float) -> float:
         """이동 거리 계산 (기존 로직을 메소드로 분리)"""
         # 1) 기본 속도 km/h → km/min
@@ -790,17 +668,17 @@ class Troop:  # Troop class to store troop information and actions
         move_px = move_m / battle_map.resolution_m  # 10m = 1px
 
         return move_px
-    
+
     def compute_direct_velocity(self, dest, battle_map: Map, current_time: float):
         """직선 이동 (백업용) - 장애물 회피 포함"""
         dx, dy = dest.x - self.coord.x, dest.y - self.coord.y
         dist = math.hypot(dx, dy)
-        
+
         if dist == 0:
             return Velocity(0, 0, 0)
-        
+
         ux, uy = dx / dist, dy / dist
-        
+
         # 장애물 회피: 여러 방향 시도
         directions = self.get_avoidance_directions(ux, uy)
 
@@ -812,18 +690,18 @@ class Troop:  # Troop class to store troop information and actions
         for dir_x, dir_y in directions:
             test_x = self.coord.x + dir_x * 3  # 3픽셀 앞 확인
             test_y = self.coord.y + dir_y * 3
-            
+
             if battle_map.is_passable(int(test_x), int(test_y)):
                 move_distance = self.calculate_movement_distance(battle_map, current_time)
                 return Velocity(dir_x * move_distance, dir_y * move_distance, 0)
-        
+
         # 모든 방향이 막혔으면 정지
         return Velocity(0, 0, 0)
-    
+
     def get_avoidance_directions(self, ux: float, uy: float) -> List[Tuple[float, float]]:
         """장애물 회피를 위한 후보 방향들"""
         directions = [(ux, uy)]  # 원래 방향이 최우선
-        
+
         # ±15°, ±30°, ±45° 방향 추가
         for angle in [15, 30, 45, -15, -30, -45]:
             rad = math.radians(angle)
@@ -831,13 +709,12 @@ class Troop:  # Troop class to store troop information and actions
             new_x = ux * cos_a - uy * sin_a
             new_y = ux * sin_a + uy * cos_a
             directions.append((new_x, new_y))
-        
+
         return directions
-    
-    
+
     def compute_velocity(self, dest, battle_map: Map, current_time: float):
         """개선된 이동 로직 - 전술적 목적지와 고급 경로탐색"""
-        
+
         # 1. 전술적 목적지 결정
         if self.target and self.active and self.can_move:
             # 아군 부대 리스트 필요 (실제 구현시 TroopList에서 전달)
@@ -847,7 +724,7 @@ class Troop:  # Troop class to store troop information and actions
             )
         else:
             tactical_dest = dest
-        
+
         # 2. 고급 경로탐색 사용
         return self.compute_velocity_advanced(tactical_dest, battle_map, current_time)
 
@@ -902,7 +779,7 @@ class TroopList:  # Troop list to manage all troops
         else:
             print(f"[ERROR] wrong team affiliation: {team}")
             return None
-        
+
     def add_observed_troop(self, troop):
         """🟢 관측 가능한 적군 추가"""
         if troop.active and troop.alive:
@@ -920,7 +797,6 @@ class TroopList:  # Troop list to manage all troops
         for troop in self.troops:
             if troop.alive and getattr(troop, 'active', False):
                 troop.find_observed_enemies(self)
-
 
     def assign_targets(self, current_time):
 
@@ -1019,7 +895,8 @@ class TroopList:  # Troop list to manage all troops
         print(f"[{current_time:.1f}] {len(firing_troops)}개 유닛 사격 시도")
 
         for troop in firing_troops:
-            enemies = self.get_enemy_list(troop)
+            # enemies = self.get_enemy_list(troop)
+            enemies = self.get_observed_enemies(troop.team)
             troop.fire(current_time, enemies, self, history)
 
         # self.shuffle_troops()
@@ -1088,39 +965,6 @@ class TroopList:  # Troop list to manage all troops
             'red_tanks': len([t for t in active_red if t.type == UnitType.TANK])
         }
 
-# def update_troop_location(troop_list, battle_map, current_time):
-#     for troop in troop_list:
-#         if not troop.alive:
-#             continue
-
-#         # “active” 플래그가 꺼져 있으면 아예 움직이지도, 표적 탐색도 하지 않음
-#         if not troop.active or not troop.can_move:
-#             troop.update_velocity(Velocity(0,0,0))
-#             continue
-
-#         # fixed_dest 가 있으면 그쪽으로, 없으면 (target or 자기 위치)
-#         if troop.fixed_dest:
-#             dest = troop.fixed_dest
-#             # print(troop.fixed_dest)
-#         else:
-#             dest = troop.target.coord if troop.target else troop.coord
-#             # print(dest)
-
-#         # dest = troop.target.coord if troop.target else troop.coord
-#         v = troop.compute_velocity(dest, battle_map, current_time)
-#         troop.update_velocity(v)
-#         troop.update_coord()
-
-#         # z 값을 DEM 에서 직접 가져오기
-#         xi, yi = int(troop.coord.x), int(troop.coord.y)
-#         if 0 <= yi < battle_map.height and 0 <= xi < battle_map.width:
-#             troop.coord.z = battle_map.dem_arr[yi, xi]
-
-#         if not (
-#             0 <= troop.coord.x < battle_map.width
-#             and 0 <= troop.coord.y < battle_map.height
-#         ):
-#             troop.alive = False
 
 def terminate(troop_list:TroopList, current_time):
     # Check if all troops are dead or if the time limit is reached
@@ -1177,7 +1021,7 @@ def update_troop_location_improved(troop_list: TroopList, battle_map, current_ti
                 troop, troop.target, battle_map, troop_list.troops
             )
             dest = dest_coord
-            troop.can_move = True  # 🔑 중요: 활성화된 부대는 이동 가능
+            # troop.can_move = True  # 🔑 중요: 활성화된 부대는 이동 가능
         else:
             dest = troop.coord  # 제자리
 

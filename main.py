@@ -181,8 +181,8 @@ def main():
     history.init_status_data(troop_list, battle_map.reference_altitude, battle_map.height)
 
     while True:
-        if current_time > 1000.0:
-            print("Simulation time exceeded 1000 minutes. Terminating.")
+        # if current_time > 1000.0:
+        #     print("Simulation time exceeded 1000 minutes. Terminating.")
 
         if timeline_index < len(TIMELINE):
             event = TIMELINE[timeline_index]
@@ -194,7 +194,13 @@ def main():
         if hist_record_time==1.0:
             history.add_to_status_data(troop_list, battle_map.reference_altitude, battle_map.height)
             hist_record_time = 0.0
-            # history.draw_troop_positions(battle_map, troop_list, current_time, save_dir=res_loc+"/frames")
+            # history.draw_troop_positions(
+            #     battle_map,
+            #     troop_list,
+            #     current_time,
+            #     save_dir=res_loc + "/frames",
+            #     show_paths=True,
+            # )
 
         if img_save_interval >= 10.0:
             # history.draw_troop_positions(
