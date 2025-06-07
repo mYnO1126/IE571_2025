@@ -67,35 +67,38 @@ class Map:  # Map class to store map information
         self.terrain_cost = {
             0: 1.0,  # plain
             1: 1.3,  # rugged (slope 10)
-            2: 2.5,  # rugged (slope 15)
+            2: 3.5,  # rugged (slope 15)
             3: 5.0,  # rugged (slope 20)
             4: 15.0,  # rugged (slope 30)
-            5: 0.8,  # road
-            6: np.inf,  # lake
-            7: 1.8,  # wood (forest)
-            8: 2.5,  # stream (smaller water)
+            5: np.inf,  # rugged (slope 35)
+            6: 0.8,  # road
+            7: np.inf,  # lake
+            8: 1.8,  # wood (forest)
+            9: 2.5,  # stream (smaller water)
         }
 
         # 1) 빈 grid 생성 (height x width)
         self.grid = np.ones((self.height, self.width), dtype=float)
 
         # 2) slope 기준으로 험지 마킹 (optional)
-        slope_threshold = 15.0  # degree 단위 예시 값
+        slope_threshold = 10.0  # degree 단위 예시 값
         self.grid[self.slope_arr > slope_threshold] *= self.terrain_cost[1]
         # 2) slope 기준으로 험지 마킹 (optional)
-        slope_threshold = 20.0  # degree 단위 예시 값
+        slope_threshold = 15.0  # degree 단위 예시 값
         self.grid[self.slope_arr > slope_threshold] *= self.terrain_cost[2]
-        slope_threshold = 25.0  # degree 단위 예시 값
+        slope_threshold = 20.0  # degree 단위 예시 값
         self.grid[self.slope_arr > slope_threshold] *= self.terrain_cost[3]
         slope_threshold = 30.0  # degree 단위 예시 값
         self.grid[self.slope_arr > slope_threshold] *= self.terrain_cost[4]
+        slope_threshold = 35.0  # degree 단위 예시 값
+        self.grid[self.slope_arr > slope_threshold] *= self.terrain_cost[5]
 
         # 3) 도로, 호수, 숲, 개울 덮어쓰기
         #    (마스크가 True/1인 곳에 해당 코드 적용)
-        self.grid[self.road_mask.astype(bool)]   *= self.terrain_cost[5]
-        self.grid[self.lake_mask.astype(bool)]   *= self.terrain_cost[6] #lask = np.inf
-        self.grid[self.wood_mask.astype(bool)]   *= self.terrain_cost[7]
-        self.grid[self.stream_mask.astype(bool)] *= self.terrain_cost[8]
+        self.grid[self.road_mask.astype(bool)]   *= self.terrain_cost[6]
+        self.grid[self.lake_mask.astype(bool)]   *= self.terrain_cost[7] #lask = np.inf
+        self.grid[self.wood_mask.astype(bool)]   *= self.terrain_cost[8]
+        self.grid[self.stream_mask.astype(bool)] *= self.terrain_cost[9]
         
         #!TEMP 비용 맵과 플로우 필드 생성 >>>>
         self.cost_map = self.build_cost_map()
