@@ -138,7 +138,7 @@ def main():
                 feat['goals'] = []
 
             for comp, cnt in feat['comp'].items():
-                if comp == 'AK-47' or comp == 'RPG':
+                if comp == 'AK-47':
                     min_gap = 4
                 else:
                     min_gap = 6
@@ -156,8 +156,8 @@ def main():
             # 수정된 코드 (3개만 생성)
             if has_goal:
                 min_gap = 6
-                num_destinations = 10  # 3개만 생성
-
+                num_destinations = 10
+                
                 goals = grid_sample_no_overlap(
                     gx_range, gy_range, num_destinations,
                     min_gap=min_gap, used=set()

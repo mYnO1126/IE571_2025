@@ -1,9 +1,6 @@
 # history.py
-import matplotlib
 
-matplotlib.use("Agg")
 import pandas as pd
-import numpy as np
 import matplotlib.pyplot as plt
 from matplotlib.colors import ListedColormap
 from matplotlib.patches import Patch
@@ -121,7 +118,7 @@ class History:  # Store history of troop actions and troop status
         df.to_csv(filename, index=False)
         print("Status data saved to status_data.csv")
 
-    def draw_troop_positions(self, Map, troop_list: TroopList, current_time, save_dir="frames", 
+    def draw_troop_positions(self, Map, troop_list, current_time, save_dir="frames", 
                            show_attack_lines=True, show_ranges=True, show_paths=False):
         # plt.figure(figsize=(16, 8))
 
@@ -171,7 +168,8 @@ class History:  # Store history of troop actions and troop status
 
         # 🟢 4. 부대 위치 그리기 (맨 위에 표시)
         self._draw_troop_markers(ax, troop_list)
-        for troop in troop_list.troops:
+
+        for troop in troop_list:
             if not troop.alive:
                 continue
             color = "blue" if troop.team == "blue" else "red"
@@ -229,7 +227,7 @@ class History:  # Store history of troop actions and troop status
         ax.legend(handles=legend_elements, loc='lower right', bbox_to_anchor=(1.2, 0.0))
         # ----지형 시각화 추가 ----
 
-        fig.tight_layout()
+        plt.tight_layout()
         plt.savefig(f"{save_dir}/frame_{int(current_time):05d}.png")
         plt.close()
 
