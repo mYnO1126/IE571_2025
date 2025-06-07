@@ -11,8 +11,9 @@ from .map import astar_pathfinding, TacticalManager, build_flow_field
 from typing import List, Tuple, Optional
 #!TEMP <<<<
 
-BLUE_HIT_PROB_BUFF = 0.8  # BLUE 진영의 명중 확률 버프
+BLUE_HIT_PROB_BUFF = 0.6  # BLUE 진영의 명중 확률 버프
 BLUE_OBS_BUFF = 1.5  # BLUE 진영의 관측 버프 (1.5배 더 관측 가능)
+PATHFIND_COOLDOWN = 30.0  # A* 경로 재계산 쿨타임 (초 단위)
 
 class Troop:  # Troop class to store troop information and actions
     # Static variables to keep track of troop IDs
@@ -47,30 +48,29 @@ class Troop:  # Troop class to store troop information and actions
         self.phase = phase
         self.fixed_dest = fixed_dest  # Fixed dest, Coordinate object to store (x, y, z) coordinates
 
-        self.ammo = 100  # ammo level (0-100%)
-        self.supply = 100  # supply level (0-100%)
-        ammo_info = AMMUNITION_DATABASE.get(unit_name, AmmunitionInfo(0, 0, 0, 0))
-        # 적재량
-        self.main_ammo = float(ammo_info.main_ammo)
-        self.secondary_ammo = float(ammo_info.secondary_ammo)
+        # self.ammo = 100  # ammo level (0-100%)
+        # self.supply = 100  # supply level (0-100%)
+        # ammo_info = AMMUNITION_DATABASE.get(unit_name, AmmunitionInfo(0, 0, 0, 0))
+        # # 적재량
+        # self.main_ammo = float(ammo_info.main_ammo)
+        # self.secondary_ammo = float(ammo_info.secondary_ammo)
 
-        # ▶ 분당 사용 속도 (= 하루 예상 사용량 ÷ 1440 분)
-        self.main_rate  = ammo_info.daily_main_usage / 1440.0
-        self.sec_rate   = ammo_info.daily_sec_usage  / 1440.0
+        # # ▶ 분당 사용 속도 (= 하루 예상 사용량 ÷ 1440 분)
+        # self.main_rate  = ammo_info.daily_main_usage / 1440.0
+        # self.sec_rate   = ammo_info.daily_sec_usage  / 1440.0
 
-        self.last_ammo_check = 0.0          # 마지막 소모 계산 시각
-        self.ammo_restricted_until = 0.0    # 10 % 이하 → 5 분 금지용
+        # self.last_ammo_check = 0.0          # 마지막 소모 계산 시각
+        # self.ammo_restricted_until = 0.0    # 10 % 이하 → 5 분 금지용
 
-        if self.type == UnitType.SUPPLY:
-            self.supply_stock = {}  # 예: {"T-55": 129, "AK-47": 12000, ...}
-            for k, v in SUPPLY_DATABASE.items():
-                self.supply_stock[k] = float(v)
+        # if self.type == UnitType.SUPPLY:
+        #     self.supply_stock = {}  # 예: {"T-55": 129, "AK-47": 12000, ...}
+        #     for k, v in SUPPLY_DATABASE.items():
+        #         self.supply_stock[k] = float(v)
 
         #!TEMP >>>>
         self.path = []  # A* 경로
         self.path_index = 0
         self.last_pathfind_time = 0
-        self.pathfind_cooldown = 10.0  # 5분마다 경로 재계산
         #!TEMP <<<<
 
     def dead(self):
@@ -457,9 +457,9 @@ class Troop:  # Troop class to store troop information and actions
 
         # 1. 경로 재계산 조건 확인
         should_recalculate = (
-            not self.path or 
-            current_time - self.last_pathfind_time > self.pathfind_cooldown or
-            self.path_index >= len(self.path)
+            not self.path
+            or current_time - self.last_pathfind_time > PATHFIND_COOLDOWN
+            or self.path_index >= len(self.path)
         )
 
         if should_recalculate:
@@ -859,6 +859,26 @@ class TroopList:  # Troop list to manage all troops
         #         elif troop.team == "red":
         #             troop.assign_target(current_time, active_blue_troops)  # 변경!
         # #!TEMP # active한 적만 필터링 <<<<
+
+    def assign_targets_for_nontarget_units(self, current_time):
+        active_blue_troops = self.blue_observed
+        active_red_troops = self.red_observed
+        targets_assigned = 0
+
+        for troop in self.troops:
+            if troop.alive and getattr(troop, 'active', False) and troop.target is None:
+                if troop.team == "blue":
+                    troop.assign_target(current_time, active_red_troops)
+                elif troop.team == "red":
+                    troop.assign_target(current_time, active_blue_troops)
+
+                # 새 타겟이 할당되었는지 확인
+                if troop.target is not None:
+                    targets_assigned += 1
+                    print(f"  {troop.id}: 새 타겟 할당 -> {troop.target.id}")
+
+        if targets_assigned > 0:
+            print(f"  총 {targets_assigned}개 유닛에 새 타겟 할당됨")
 
     def get_enemy_list(self, troop):
         if troop.team == "blue":

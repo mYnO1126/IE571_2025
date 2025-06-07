@@ -181,7 +181,7 @@ def main():
     history.init_status_data(troop_list, battle_map.reference_altitude, battle_map.height)
 
     while True:
-        # if current_time > 1000.0:
+        # if current_time > 1440.0:
         #     print("Simulation time exceeded 1000 minutes. Terminating.")
 
         if timeline_index < len(TIMELINE):
@@ -228,6 +228,7 @@ def main():
         # update_troop_location(troop_list.troops, battle_map, current_time) #!TEMP
         update_troop_location_improved(troop_list, battle_map, current_time)
         troop_list.update_observation()
+        troop_list.assign_targets_for_nontarget_units(current_time)
 
         next_battle_time = troop_list.get_next_battle_time()
         # print(f"Current time: {current_time:.2f} min")
