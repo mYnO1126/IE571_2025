@@ -10,7 +10,9 @@ Valley of Tears, Yom Kippur War, 1973 Arab-Israeli War
 ### Simulation Structure
 
 Terrain data extracted from QGIS
+
 Simulation implemented with Python
+
 Visualization implemented with Unity
 
 ### Installation 
