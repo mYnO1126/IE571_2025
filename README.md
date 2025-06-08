@@ -1,6 +1,6 @@
 # IE571_2025 War Game Modeling
 ### KAIST IE571 2025 Spring 
-Group 2 김희연, 민향숙, 신희연, 양승부, 이민호, 정민혁
+Group 2 김희연, 민향숙, 신혜민, 양승부, 이민호, 정민혁
 
 ## War Game
 
