@@ -7,6 +7,12 @@ Group 2 김희연, 민향숙, 신희연, 양승부, 이민호, 정민혁
 ### Scenario
 Valley of Tears, Yom Kippur War, 1973 Arab-Israeli War
 
+### Simulation Structure
+
+Terrain data extracted from QGIS
+Simulation implemented with Python
+Visualization implemented with Unity
+
 ### Installation 
 
 Clone repo and install [requirements.txt](git@github.com:mYnO1126/IE571_2025.git) in a
@@ -52,7 +58,26 @@ pip install -r requirements.txt  # install
 
 ```bash
 python main.py
+
+# python main.py --plot True    # show plot of team strength after simulation is done, default: True
+# python main.py --save_frames True # save frames every minute during simulation (slow), default: False
+# python main.py --save_tactics True # save tactic frames every 10 minutes, default: True
+
 ```
 
-results saved in res/res"i"
+results saved in res/res*
+
+```bash
+├── res/
+│   ├── res*/
+│   │   ├── frames/
+│   │   │   └── frame_*.png
+│   │   ├── frames_tactics/
+│   │   │   └── tactical_*.png
+│   │   ├── battle_log.csv
+│   │   ├── plot.png
+│   │   ├── status_data.csv
+│   │   └── visualization_data.csv
+
+```
 

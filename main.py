@@ -3,15 +3,14 @@
 import numpy as np
 import random
 import signal
-import sys
+import argparse
+
 from modules.history import History
-# from modules.map import Map, placement_zones, MAX_TIME, TIME_STEP, MAP_WIDTH, MAP_HEIGHT
-from modules.map import Map, Coord, MAX_TIME, TIME_STEP # MAP_WIDTH, MAP_HEIGHT, 
+from modules.map import Map, Coord, TIME_STEP
 from modules.placement import PLACEMENT, grid_sample_no_overlap
-from modules.timeline import TimelineEvent, TIMELINE
-from modules.troop import Troop, TroopList, terminate, UNIT_SPECS
+from modules.timeline import TIMELINE
+from modules.troop import Troop, TroopList, terminate
 from modules.troop import update_troop_location_improved
-from modules.unit_definitions import UnitType, UnitComposition
 from modules.utils import initialize_folders
 
 
@@ -34,11 +33,6 @@ def create_from_positions(unit_positions):
             for comp, cnt in feat['comp'].items():
                 comp_list += [comp] * cnt
 
-            # # comp_list[i] 와 feat['locs'][i] 를 짝지어 Troop 생성
-            # for comp, (x, y, z) in zip(comp_list, feat['locs']):
-            #     t = Troop(comp, Coord(x, y, z), affiliation=affiliation, phase=phase,
-            #               fixed_dest=Coord(dest[0], dest[1], dest[2]) if dest else None)
-            #     troops.append(t)
               # 3개 목적지 중 랜덤 선택 처리
             goals_list = feat.get('goals', [])
             available_destinations = []
@@ -67,14 +61,6 @@ def handle_sigint(signum, frame):
     print("\n[Ctrl+C] Interrupt received! Preparing to terminate gracefully...")
     terminate_flag = True
 
-# def handle_event(event, troop_list, battle_map):
-
-#     return
-#     # if event.type == "reinforcement":
-#     #     # event.params에 증원 정보가 들어 있다고 가정
-#     #     troop_list.add_troops(event.params)
-#     # elif event.type == "fortify":
-#     #     battle_map.build_defenses(event.params)
 
 def handle_event(event, troop_list, battle_map):
     global active_on, move_on
@@ -104,7 +90,7 @@ def handle_event(event, troop_list, battle_map):
     print(f"Re-assigning targets...")
     troop_list.assign_targets(event.time)
 
-def main():
+def main(args):
     # Simulation parameters
     random.seed(42)  # For reproducibility
     np.random.seed(42)  # For reproducibility
@@ -118,8 +104,7 @@ def main():
     hist_record_time = 0.0
     img_save_interval = 0.0  # Save every 1 minute
     history = History(time=current_time)
-    # battle_map = Map(MAP_WIDTH, MAP_HEIGHT)  # Create a map of size 100x100
-    battle_map = Map() #MAP_WIDTH, MAP_HEIGHT)  # Create a map of size 100x100
+    battle_map = Map() # Create a map
     print("Map Size", battle_map.dem_arr.shape)
 
     timeline_index = 0
@@ -157,7 +142,7 @@ def main():
             if has_goal:
                 min_gap = 6
                 num_destinations = 10
-                
+
                 goals = grid_sample_no_overlap(
                     gx_range, gy_range, num_destinations,
                     min_gap=min_gap, used=set()
@@ -168,12 +153,6 @@ def main():
                 ]
                 feat['goals'].extend(goals_xyz)
 
-    # troop_list = generate_all_troops()
-    # spawned_troops = generate_initial_troops(placement_zones = placement_zones)
-    # troop_list = TroopList(spawned_troops)
-    # assign_target_all(current_time, troop_list)
-    # history.init_status_data(troop_list)
-
     spawned_troops = create_from_positions(PLACEMENT)
     troop_list = TroopList(troop_list = spawned_troops)
 
@@ -181,9 +160,6 @@ def main():
     history.init_status_data(troop_list, battle_map.reference_altitude, battle_map.height)
 
     while True:
-        # if current_time > 1440.0:
-        #     print("Simulation time exceeded 1000 minutes. Terminating.")
-
         if timeline_index < len(TIMELINE):
             event = TIMELINE[timeline_index]
             if current_time == event.time:
@@ -194,18 +170,16 @@ def main():
         if hist_record_time==1.0:
             history.add_to_status_data(troop_list, battle_map.reference_altitude, battle_map.height)
             hist_record_time = 0.0
-            # history.draw_troop_positions(
-            #     battle_map,
-            #     troop_list,
-            #     current_time,
-            #     save_dir=res_loc + "/frames",
-            #     show_paths=True,
-            # )
 
-        if img_save_interval >= 10.0:
-            # history.draw_troop_positions(
-            #     battle_map, troop_list, current_time, save_dir=res_loc + "/frames", show_paths=True
-            # )
+        if img_save_interval >= 1.0 and args.save_frames:
+            # Save frame every 1 minutes
+            history.draw_troop_positions(
+                battle_map,
+                troop_list,
+                current_time,
+                save_dir=res_loc + "/frames",
+                show_paths=True,
+            )
             img_save_interval = 0.0
 
         troop_list.remove_dead_troops()
@@ -214,7 +188,7 @@ def main():
             history.save_battle_log(res_loc)
             history.save_status_data(res_loc)
             print("Simulation terminated.")
-            history.plot_team_strength_over_time(res_loc)
+            history.plot_team_strength_over_time(res_loc, args.plot)
             break
 
         current_time = round(current_time + TIME_STEP, 2)
@@ -243,7 +217,21 @@ def main():
             red_active = len([t for t in troop_list.red_troops if t.active and t.alive])
             print(f"시간 {current_time}: Blue 활성화 {blue_active}개, Red 활성화 {red_active}개")
             print(troop_list.get_combat_status())
-            history.create_tactical_overview(battle_map, troop_list, current_time, save_dir=res_loc+"/frames_tactics")
+            if args.save_tactics:
+                # Create tactical overview frame every 10 minutes
+                history.create_tactical_overview(
+                    battle_map,
+                    troop_list,
+                    current_time,
+                    save_dir=res_loc + "/frames_tactics",
+                )
+
 
 if __name__ == "__main__":
-    main()
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--plot", type=bool, default=True, help="Plot the team strength over time at the end of simulation")
+    parser.add_argument("--save_frames", type=bool, default=False, help="Save frames during simulation (slow down)")
+    parser.add_argument("--save_tactics", type=bool, default=True, help="Save tactical overview frames during simulation")
+
+    args = parser.parse_args()
+    main(args)

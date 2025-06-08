@@ -437,7 +437,7 @@ class History:  # Store history of troop actions and troop status
             ax.set_title(f"intensity of engagement - T={current_time:.0f} min")
 
 
-    def plot_team_strength_over_time(self, foldername="res/res0"):
+    def plot_team_strength_over_time(self, foldername="res/res0", show_plot=True):
         df = pd.DataFrame(self.status_data)
 
         time_col = df["time"]
@@ -465,5 +465,6 @@ class History:  # Store history of troop actions and troop status
         plt.grid(True)
         plt.tight_layout()
         plt.savefig(foldername + "/plot.png", dpi=300)  # ✅ 파일 저장
-        plt.show()
+        if show_plot:
+            plt.show()
         print(f"Graph saved as {foldername}/plot.png")
